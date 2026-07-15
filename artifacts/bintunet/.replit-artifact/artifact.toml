@@ -1,0 +1,27 @@
+kind = "web"
+previewPath = "/"
+title = "BintuNet Controller"
+version = "1.0.0"
+id = "artifacts/bintunet"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 21227
+
+[services.development]
+run = "pnpm --filter @workspace/bintunet run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/bintunet", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/bintunet/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "21227"
+BASE_PATH = "/"

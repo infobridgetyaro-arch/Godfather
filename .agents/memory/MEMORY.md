@@ -1,0 +1,1 @@
+- [Importing an external GitHub repo](importing-external-repo.md) — inspect in /tmp first, skip deployment scaffolding, watch out for stale proxy configs and unmanaged system binaries.

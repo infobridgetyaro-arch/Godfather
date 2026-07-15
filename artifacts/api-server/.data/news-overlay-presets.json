@@ -1,0 +1,152 @@
+[
+  {
+    "id": "preset-1784103534697-lyd63",
+    "name": "CNN Breaking",
+    "description": "CNN-style breaking news with red accent",
+    "createdAt": 1784103534697,
+    "updatedAt": 1784103534697,
+    "state": {
+      "theme": "CNN",
+      "ticker": {
+        "style": "CNN",
+        "direction": "left",
+        "speed": 25,
+        "paused": false,
+        "separator": "   ⚡   "
+      },
+      "breakingNews": {
+        "active": true,
+        "text": "BREAKING NEWS",
+        "flashInterval": 800,
+        "overridesTicker": false
+      },
+      "liveBadge": {
+        "visible": true,
+        "label": "LIVE",
+        "pulse": true,
+        "color": "#cc0001"
+      },
+      "enterAnimation": "Slide Up"
+    }
+  },
+  {
+    "id": "preset-1784103534697-disqd",
+    "name": "Bloomberg Finance",
+    "description": "Bloomberg-style financial ticker",
+    "createdAt": 1784103534697,
+    "updatedAt": 1784103534697,
+    "state": {
+      "theme": "Bloomberg",
+      "ticker": {
+        "style": "Bloomberg",
+        "direction": "left",
+        "speed": 20,
+        "paused": false,
+        "separator": "  |  "
+      },
+      "breakingNews": {
+        "active": false,
+        "text": "",
+        "flashInterval": 800,
+        "overridesTicker": false
+      },
+      "liveBadge": {
+        "visible": true,
+        "label": "MARKETS",
+        "pulse": false,
+        "color": "#f59e0b"
+      },
+      "enterAnimation": "Fade"
+    }
+  },
+  {
+    "id": "preset-1784103534697-3hpkx",
+    "name": "BBC World News",
+    "description": "BBC-style professional news ticker",
+    "createdAt": 1784103534697,
+    "updatedAt": 1784103534697,
+    "state": {
+      "theme": "BBC",
+      "ticker": {
+        "style": "BBC",
+        "direction": "left",
+        "speed": 30,
+        "paused": false,
+        "separator": "  ·  "
+      },
+      "breakingNews": {
+        "active": false,
+        "text": "",
+        "flashInterval": 800,
+        "overridesTicker": false
+      },
+      "liveBadge": {
+        "visible": true,
+        "label": "LIVE COVERAGE",
+        "pulse": false,
+        "color": "#0057ff"
+      },
+      "enterAnimation": "Fade"
+    }
+  },
+  {
+    "id": "preset-1784103534697-wy6t7",
+    "name": "Minimal Clean",
+    "description": "Subtle, minimal overlay for professional broadcasts",
+    "createdAt": 1784103534697,
+    "updatedAt": 1784103534697,
+    "state": {
+      "theme": "Minimal",
+      "ticker": {
+        "style": "Minimal",
+        "direction": "left",
+        "speed": 35,
+        "paused": false,
+        "separator": "   ·   "
+      },
+      "breakingNews": {
+        "active": false,
+        "text": "",
+        "flashInterval": 800,
+        "overridesTicker": false
+      },
+      "liveBadge": {
+        "visible": false,
+        "label": "LIVE",
+        "pulse": false,
+        "color": "#ffffff"
+      },
+      "enterAnimation": "Fade"
+    }
+  },
+  {
+    "id": "preset-1784103534698-l4ebd",
+    "name": "Election Night",
+    "description": "High-contrast election results style",
+    "createdAt": 1784103534698,
+    "updatedAt": 1784103534698,
+    "state": {
+      "theme": "Election",
+      "ticker": {
+        "style": "Election",
+        "direction": "left",
+        "speed": 20,
+        "paused": false,
+        "separator": "  ★  "
+      },
+      "breakingNews": {
+        "active": true,
+        "text": "ELECTION NIGHT COVERAGE",
+        "flashInterval": 600,
+        "overridesTicker": false
+      },
+      "liveBadge": {
+        "visible": true,
+        "label": "ELECTION NIGHT",
+        "pulse": true,
+        "color": "#ef4444"
+      },
+      "enterAnimation": "Glitch"
+    }
+  }
+]

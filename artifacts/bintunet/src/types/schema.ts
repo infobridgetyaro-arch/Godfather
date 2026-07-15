@@ -1,0 +1,33 @@
+export type StreamConfig = {
+  id: string;
+  sourceType: "tiktok" | "youtube" | "facebook" | "camera" | "xspace" | "upload" | "link";
+  tiktokUsername: string;
+  youtubeSourceUrl: string;
+  facebookSourceUrl: string;
+  linkSourceUrl: string;
+  cameraDevice: string;
+  xspaceUrl: string;
+  xspaceImageUrl: string;
+  xspaceVideoPath: string;
+  uploadedVideoPath: string;
+  uploadedVideoLoop: boolean;
+  youtubeStreamKey: string;
+  facebookRtmpUrl: string;
+  instagramStreamKey: string;
+  tiktokStreamKey: string;
+  youtubeChannelId: string;
+  ratio: "mobile" | "desktop";
+  quality: "best" | "720p" | "480p";
+  aqmMode: "auto" | "force_4k" | "force_1440p" | "force_1080p" | "force_720p" | "force_540p" | "force_480p" | "force_360p" | "force_240p";
+  fps: "20" | "24" | "25" | "30" | "60";
+  encoderPreset: "ultrafast" | "veryfast" | "faster" | "fast";
+  muted: boolean;
+  autoRestart: boolean;
+  status: "idle" | "streaming" | "error" | "reconnecting";
+  micDevice: string;
+  micEnabled: boolean;
+  autoReconnect: boolean;
+  maxReconnectMinutes: number | null;
+};
+
+export type InsertStream = Omit<StreamConfig, "id" | "status">;
