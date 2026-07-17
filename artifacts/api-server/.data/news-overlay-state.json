@@ -1,0 +1,78 @@
+{
+  "active": true,
+  "previewMode": false,
+  "theme": "CNBC",
+  "customColors": {
+    "primary": "#003399",
+    "secondary": "#0044cc",
+    "background": "#000022",
+    "text": "#ffffff",
+    "badge": "#003399",
+    "badgeText": "#ffffff"
+  },
+  "customFont": {
+    "family": "Arial, sans-serif",
+    "size": 13,
+    "weight": 700,
+    "letterSpacing": 0.02
+  },
+  "customBorder": {
+    "width": 2,
+    "color": "#003399",
+    "radius": 0
+  },
+  "customShadow": {
+    "enabled": false,
+    "color": "rgba(0,0,0,0.5)",
+    "blur": 0,
+    "x": 0,
+    "y": 0
+  },
+  "opacity": 1,
+  "layout": {
+    "position": {
+      "x": 22,
+      "y": 93
+    },
+    "width": 0,
+    "height": 0,
+    "zIndex": 30,
+    "scale": 100
+  },
+  "logo": "",
+  "logoUrl": "",
+  "liveBadge": {
+    "visible": true,
+    "label": "CNBC",
+    "pulse": false,
+    "color": "#003399"
+  },
+  "headline": {
+    "text": "Welcome to the live stream! Stay tuned for more upd",
+    "animation": "Slide Right",
+    "durationMs": 5000,
+    "autoRotate": false,
+    "headlines": [
+      "Welcome to the live stream! Stay tuned for more updates.",
+      "Thanks for watching — subscribe for more content!"
+    ],
+    "currentIndex": 0
+  },
+  "breakingNews": {
+    "active": true,
+    "text": "BREAKING: AI activated!",
+    "flashInterval": 800,
+    "overridesTicker": false
+  },
+  "ticker": {
+    "style": "Sky News",
+    "direction": "left",
+    "speed": 54,
+    "paused": false,
+    "separator": "  |  "
+  },
+  "widgets": [],
+  "enterAnimation": "Slide Right",
+  "exitAnimation": "Slide Down",
+  "animationDurationMs": 500
+}

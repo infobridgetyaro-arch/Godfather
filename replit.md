@@ -1,45 +1,44 @@
-# [Project name]
+# BintuNet Controller
 
-_Replace the heading above with the project's name, and this line with one sentence describing what this app does for users._
+A live-streaming management platform for broadcasting to YouTube, Facebook, TikTok, and other platforms simultaneously. Includes a news overlay engine, donation/payment gateway, HLS encoding, scene management, and AI-assisted tools.
 
-## Run & Operate
+## Architecture
 
-- `pnpm --filter @workspace/api-server run dev` — run the API server (port 5000)
-- `pnpm run typecheck` — full typecheck across all packages
-- `pnpm run build` — typecheck + build all packages
-- `pnpm --filter @workspace/api-spec run codegen` — regenerate API hooks and Zod schemas from the OpenAPI spec
-- `pnpm --filter @workspace/db run push` — push DB schema changes (dev only)
-- Required env: `DATABASE_URL` — Postgres connection string
+- **Frontend** (`artifacts/bintunet/`) — React + Vite + Tailwind + shadcn/ui, port 5000
+- **API Server** (`artifacts/api-server/`) — Express + TypeScript, port 8080
+- **DB** (`lib/db/`) — Drizzle ORM + PostgreSQL (schema currently empty — tables to be added)
+- **API types** (`lib/api-zod/`, `lib/api-spec/`, `lib/api-client-react/`) — shared Zod schemas and React Query hooks
 
-## Stack
+## Running
 
-- pnpm workspaces, Node.js 24, TypeScript 5.9
-- API: Express 5
-- DB: PostgreSQL + Drizzle ORM
-- Validation: Zod (`zod/v4`), `drizzle-zod`
-- API codegen: Orval (from OpenAPI spec)
-- Build: esbuild (CJS bundle)
+Two workflows must be running:
+- `artifacts/bintunet: web` — frontend dev server
+- `artifacts/api-server: API Server` — backend API
 
-## Where things live
+## Login
 
-_Populate as you build — short repo map plus pointers to the source-of-truth file for DB schema, API contracts, theme files, etc._
+Default password: set via `BINTUNET_PASSWORD` environment variable (currently `bintunet`).
 
-## Architecture decisions
+## Environment variables
 
-_Populate as you build — non-obvious choices a reader couldn't infer from the code (3-5 bullets)._
+| Variable | Required | Description |
+|---|---|---|
+| `SESSION_SECRET` | Yes (secret) | Express session signing key |
+| `BINTUNET_PASSWORD` | No | Admin login password (defaults to `bintunet` — **change this in production**) |
+| `DATABASE_URL` | No | PostgreSQL connection string — only needed when the DB-backed storage layer is active |
+| `REDIS_URL` | No | Enables HA mode + persistent WebSocket bus (runs in-memory without it) |
+| `YOUTUBE_API_KEY` | No | Live viewer/subscriber polling |
+| `R2_ENDPOINT`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET`, `CDN_BASE_URL` | No | Cloudflare R2 for HLS segment CDN |
+| `OPENAI_API_KEY` | No | AI assistant features |
+| `HLS_ENABLED` | No | Set to `true` to enable HLS encoder alongside RTMP |
 
-## Product
+## First-run setup notes
 
-_Describe the high-level user-facing capabilities of this app once they exist._
+- `.env.example` is for reference only — the app does **not** load `.env` files. Set env vars via Replit Secrets or the env panel.
+- `SESSION_SECRET` must be set as a Replit Secret (it already is if you're reading this after setup).
+- The app runs without Redis, R2, YouTube API key, or OpenAI key — those features are simply disabled.
+- Vite requires `PORT` and `BASE_PATH` at startup; the workflow handles this (`PORT=5000 BASE_PATH=/`). Do not run the frontend with bare `pnpm dev`.
 
 ## User preferences
 
-_Populate as you build — explicit user instructions worth remembering across sessions._
-
-## Gotchas
-
-_Populate as you build — sharp edges, "always run X before Y" rules._
-
-## Pointers
-
-- See the `pnpm-workspace` skill for workspace structure, TypeScript setup, and package details
+- Keep existing project structure and stack
