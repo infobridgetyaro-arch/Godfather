@@ -1,0 +1,203 @@
+name: Run BintuNet
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+jobs:
+  serve:
+    name: Start server & expose public URL
+    runs-on: ubuntu-latest
+    timeout-minutes: 340
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update -y -q
+          sudo apt-get install -y -q ffmpeg python3 python3-pip
+          pip3 install --quiet streamlink
+          sudo curl -fsSL \
+            https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp \
+            -o /usr/local/bin/yt-dlp
+          sudo chmod a+rx /usr/local/bin/yt-dlp
+          ffmpeg -version | head -1
+          streamlink --version
+          yt-dlp --version
+
+      - name: Install ngrok
+        run: |
+          curl -fsSL https://bin.equinox.io/c/bNyj1mQVY4c/ngrok-v3-stable-linux-amd64.tgz \
+            | sudo tar -xz -C /usr/local/bin
+          ngrok --version
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build frontend
+        run: PORT=3000 BASE_PATH=/ pnpm --filter @workspace/bintunet run build
+        env:
+          NODE_ENV: production
+
+      - name: Build API server
+        run: pnpm --filter @workspace/api-server run build
+
+      - name: Prepare runtime directories
+        run: |
+          mkdir -p artifacts/api-server/uploads
+          mkdir -p artifacts/api-server/tmp_overlay
+
+      - name: Start API server
+        env:
+          NODE_ENV: production
+          PORT: "8080"
+          SESSION_SECRET: ${{ secrets.SESSION_SECRET }}
+          BINTUNET_PASSWORD: ${{ secrets.BINTUNET_PASSWORD }}
+          YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
+          YOUTUBE_API_KEYS: ${{ secrets.YOUTUBE_API_KEYS }}
+          YOUTUBE_API_KEY1: ${{ secrets.YOUTUBE_API_KEY1 }}
+          YOUTUBE_API_KEY2: ${{ secrets.YOUTUBE_API_KEY2 }}
+          YOUTUBE_API_KEY3: ${{ secrets.YOUTUBE_API_KEY3 }}
+          YOUTUBE_API_KEY4: ${{ secrets.YOUTUBE_API_KEY4 }}
+          YOUTUBE_API_KEY5: ${{ secrets.YOUTUBE_API_KEY5 }}
+          GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
+          PAYSTACK_SECRET_KEY: ${{ secrets.PAYSTACK_SECRET_KEY }}
+          NGROK_TOKEN: ${{ secrets.NGROK_TOKEN }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          REDIS_URL: ${{ secrets.REDIS_URL }}
+          VPS_ROLE: ${{ secrets.VPS_ROLE }}
+          PRIMARY_API_URL: ${{ secrets.PRIMARY_API_URL }}
+          FAILOVER_POLL_MS: ${{ secrets.FAILOVER_POLL_MS }}
+          FAILOVER_TIMEOUT_MS: ${{ secrets.FAILOVER_TIMEOUT_MS }}
+          HLS_ENABLED: ${{ secrets.HLS_ENABLED }}
+          HLS_SEGMENT_DIR: ${{ secrets.HLS_SEGMENT_DIR }}
+          R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_BUCKET: ${{ secrets.R2_BUCKET }}
+          CDN_BASE_URL: ${{ secrets.CDN_BASE_URL }}
+          LOG_LEVEL: ${{ secrets.LOG_LEVEL }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: |
+          node --enable-source-maps artifacts/api-server/dist/index.mjs \
+            > /tmp/server.log 2>&1 &
+          echo $! > /tmp/server.pid
+          echo "Server PID: $(cat /tmp/server.pid)"
+
+          echo "Waiting for server on port 8080..."
+          SERVER_UP=false
+          for i in $(seq 1 30); do
+            if curl -sf http://localhost:8080/api/healthz > /dev/null 2>&1; then
+              echo "✓ Server is up after ${i}s"
+              SERVER_UP=true
+              break
+            fi
+            if ! kill -0 "$(cat /tmp/server.pid)" 2>/dev/null; then
+              echo "✗ Server process died during startup. Crash log:"
+              cat /tmp/server.log
+              exit 1
+            fi
+            sleep 1
+          done
+
+          if [ "$SERVER_UP" = "false" ]; then
+            echo "✗ Server did not respond in 30s. Crash log:"
+            cat /tmp/server.log
+            kill "$(cat /tmp/server.pid)" 2>/dev/null || true
+            exit 1
+          fi
+
+      - name: Start ngrok tunnel
+        run: |
+          ngrok config add-authtoken "${{ secrets.NGROK_TOKEN }}"
+          ngrok http 8080 --log=stdout > /tmp/ngrok.log 2>&1 &
+          echo $! > /tmp/ngrok.pid
+
+          echo "Waiting for ngrok URL..."
+          PUBLIC_URL=""
+          for i in $(seq 1 30); do
+            PUBLIC_URL=$(curl -sf http://localhost:4040/api/tunnels \
+              | grep -oP '"public_url":"https://[^"]+' \
+              | head -1 \
+              | sed 's/"public_url":"//g')
+            if [ -n "$PUBLIC_URL" ]; then
+              break
+            fi
+            sleep 1
+          done
+
+          if [ -z "$PUBLIC_URL" ]; then
+            echo "ERROR: ngrok URL not found. Dumping log:"
+            cat /tmp/ngrok.log
+            exit 1
+          fi
+
+          echo ""
+          echo "╔══════════════════════════════════════════════════════╗"
+          echo "║  🚀 BintuNet is LIVE                                 ║"
+          echo "║                                                      ║"
+          printf "║  URL : %-46s ║\n" "$PUBLIC_URL"
+          echo "║                                                      ║"
+          echo "╚══════════════════════════════════════════════════════╝"
+          echo ""
+          echo "PUBLIC_URL=$PUBLIC_URL" >> "$GITHUB_ENV"
+
+      - name: Keep alive
+        run: |
+          SERVER_PID=$(cat /tmp/server.pid)
+          NGROK_PID=$(cat /tmp/ngrok.pid)
+
+          echo "════════════════════════════════════════"
+          echo "  Server PID : $SERVER_PID"
+          echo "  ngrok PID  : $NGROK_PID"
+          echo "  URL        : $PUBLIC_URL"
+          echo "  Running for up to 5 hours 40 minutes."
+          echo "  Cancel this workflow to shut down."
+          echo "════════════════════════════════════════"
+
+          if ! kill -0 "$SERVER_PID" 2>/dev/null; then
+            echo "✗ Server process is not running! Crash log:"
+            cat /tmp/server.log
+            exit 1
+          fi
+          if ! kill -0 "$NGROK_PID" 2>/dev/null; then
+            echo "✗ ngrok process is not running! ngrok log:"
+            cat /tmp/ngrok.log
+            exit 1
+          fi
+
+          TICK=0
+          while kill -0 "$SERVER_PID" 2>/dev/null && kill -0 "$NGROK_PID" 2>/dev/null; do
+            sleep 30
+            TICK=$(( TICK + 1 ))
+            if [ $(( TICK % 10 )) -eq 0 ]; then
+              MINS=$(( TICK * 30 / 60 ))
+              echo "$(date -u '+%H:%M:%S') ♥  alive for ${MINS}m — $PUBLIC_URL"
+            fi
+          done
+
+          echo ""
+          echo "A process exited — shutting down."
+          if ! kill -0 "$SERVER_PID" 2>/dev/null; then
+            echo "Server died. Last 30 lines of server log:"
+            tail -30 /tmp/server.log
+          fi
+          if ! kill -0 "$NGROK_PID" 2>/dev/null; then
+            echo "ngrok died. Last 20 lines of ngrok log:"
+            tail -20 /tmp/ngrok.log
+          fi
