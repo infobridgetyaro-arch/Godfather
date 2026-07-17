@@ -8,6 +8,12 @@ import {
   Music, SkipForward, SkipBack, Pause, ListMusic, Trash2, Plus, Upload, RefreshCw,
   Radio as RadioIcon, LayoutGrid, Heart, Server,
 } from "lucide-react";
+import { Key } from "lucide-react";
+import { GiftPopup, type GiftEvent } from "./gift-popup";
+import type { DonationRecord } from "./donation-panel";
+import { useWebSocket } from "@/hooks/use-websocket";
+import { toast } from "sonner";
+
 // Panel components — loaded lazily so their JS is fetched only when the tab is
 // first opened. GiftPopup is always rendered (top-level alert), so it stays eager.
 const StatsPanel      = lazy(() => import("./stats-panel").then(m => ({ default: m.StatsPanel })));
@@ -18,9 +24,6 @@ const YouTubeApiPanel = lazy(() => import("./youtube-api-panel").then(m => ({ de
 const NewsPanel       = lazy(() => import("./news-panel").then(m => ({ default: m.NewsPanel })));
 const SocialPanel     = lazy(() => import("./social-panel").then(m => ({ default: m.SocialPanel })));
 const SystemPanel     = lazy(() => import("./system-panel").then(m => ({ default: m.SystemPanel })));
-import { GiftPopup, type GiftEvent } from "./gift-popup";
-import type { DonationRecord } from "./donation-panel";
-import { Key } from "lucide-react";
 
 // Tiny inline fallback shown while a lazy panel module is fetching
 function PanelSpinner() {
@@ -30,8 +33,6 @@ function PanelSpinner() {
     </div>
   );
 }
-import { useWebSocket } from "@/hooks/use-websocket";
-import { toast } from "sonner";
 
 interface ChatMessage {
   id: string;
