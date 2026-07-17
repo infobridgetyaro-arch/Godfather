@@ -1,24 +1,24 @@
 {
   "active": true,
   "previewMode": false,
-  "theme": "CNBC",
+  "theme": "Sky News",
   "customColors": {
-    "primary": "#003399",
-    "secondary": "#0044cc",
-    "background": "#000022",
+    "primary": "#0ea5e9",
+    "secondary": "#0369a1",
+    "background": "rgba(0,0,0,0.92)",
     "text": "#ffffff",
-    "badge": "#003399",
+    "badge": "#0ea5e9",
     "badgeText": "#ffffff"
   },
   "customFont": {
     "family": "Arial, sans-serif",
-    "size": 13,
-    "weight": 700,
+    "size": 14,
+    "weight": 600,
     "letterSpacing": 0.02
   },
   "customBorder": {
     "width": 2,
-    "color": "#003399",
+    "color": "#0ea5e9",
     "radius": 0
   },
   "customShadow": {
@@ -43,9 +43,9 @@
   "logoUrl": "",
   "liveBadge": {
     "visible": true,
-    "label": "CNBC",
+    "label": "SKY NEWS",
     "pulse": false,
-    "color": "#003399"
+    "color": "#0ea5e9"
   },
   "headline": {
     "text": "Welcome to the live stream! Stay tuned for more upd",

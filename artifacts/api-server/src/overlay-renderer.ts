@@ -5570,133 +5570,144 @@ export class OverlayRenderer {
     const handles = (state.socialHandles ?? []).filter(h => h.enabled);
     if (handles.length === 0) return;
 
-    const INTERVAL = Math.max(3, state.socialRotateInterval ?? 8);
-    const TRANS_DUR = 0.5; // seconds for transition
+    // ── Timing ──────────────────────────────────────────────────────────────
+    // Each card pops IN, holds for the configured duration, then pops OUT.
+    // A short silent gap separates consecutive cards so there is always a
+    // clean pause between them rather than an instant swap.
+    const INTERVAL = Math.max(4, state.socialRotateInterval ?? 8);
+    const IN_DUR   = 0.52;   // slide-in seconds
+    const OUT_DUR  = 0.52;   // slide-out seconds
+    const GAP      = 0.75;   // silent gap (nothing on screen) at end of cycle
+    // Total visible window (in + hold + out).  Must fit inside INTERVAL - GAP.
+    const SHOW_DUR = Math.max(IN_DUR + OUT_DUR + 0.4, INTERVAL - GAP);
 
-    // Advance rotation index
+    // Advance card index
     if (this.socialLastSwitchT === 0) this.socialLastSwitchT = t;
-    const elapsed = t - this.socialLastSwitchT;
-    if (elapsed >= INTERVAL) {
-      this.socialCurrentIdx = (this.socialCurrentIdx + 1) % handles.length;
+    if ((t - this.socialLastSwitchT) >= INTERVAL) {
+      this.socialCurrentIdx  = (this.socialCurrentIdx + 1) % handles.length;
       this.socialLastSwitchT = t;
     }
 
-    const cur  = handles[this.socialCurrentIdx];
-    const next = handles[(this.socialCurrentIdx + 1) % handles.length];
-    const transProgress = Math.max(0, elapsed - (INTERVAL - TRANS_DUR)) / TRANS_DUR;
-    const tp = Math.min(1, transProgress);
-    const ep = this.easeInOut(tp);
+    const phaseT = t - this.socialLastSwitchT;   // 0 … INTERVAL
 
-    const sc    = (state.socialScale ?? 100) / 100;
-    const pos   = state.socialPosition ?? { x: 2, y: 82 };
-    const cardW = Math.round(W * 0.22 * sc);
-    const cardH = Math.round(H * 0.072 * sc);
-    const r     = Math.round(cardH * 0.22);
-    const px    = (pos.x / 100) * W;
-    const py    = (pos.y / 100) * H;
+    // During the silent gap at the end of the cycle — draw nothing.
+    if (phaseT >= SHOW_DUR) return;
 
-    const anim = state.socialAnimation || "Spin";
+    // Slide-progress: 0 = fully off-screen left, 1 = fully on-screen.
+    let slide = 1.0;
+    if (phaseT < IN_DUR) {
+      // Sliding in — elastic bounce for a lively pop
+      const p = phaseT / IN_DUR;
+      slide   = this.easeElastic(p);
+    } else if (phaseT >= SHOW_DUR - OUT_DUR) {
+      // Sliding out — clean ease-in so it snaps away quickly
+      const p = (phaseT - (SHOW_DUR - OUT_DUR)) / OUT_DUR;
+      slide   = 1 - this.easeInOut(p);
+    }
 
-    const drawCard = (handle: typeof cur, progress: number, isLeaving: boolean) => {
-      const platform = OverlayRenderer.SOCIAL_PLATFORMS[handle.platform] ?? { bg: "#333", accent: "#fff", icon: "◎" };
-      const isSnap = handle.platform === "Snapchat";
-      const textColor = isSnap ? "#000" : "#fff";
+    // Hold progress: 0→1 during the visible hold phase (used for progress bar).
+    const holdStart  = IN_DUR;
+    const holdEnd    = SHOW_DUR - OUT_DUR;
+    const holdLength = Math.max(0.01, holdEnd - holdStart);
+    const holdP      = Math.min(1, Math.max(0, (phaseT - holdStart) / holdLength));
 
-      let ox = 0, oy = 0, scale = 1, alpha = 1, rotate = 0;
+    const cur      = handles[this.socialCurrentIdx];
+    const platform = OverlayRenderer.SOCIAL_PLATFORMS[cur.platform] ?? { bg: "#333", accent: "#fff", icon: "◎" };
+    const isSnap   = cur.platform === "Snapchat";
 
-      switch (anim) {
-        case "Spin":
-          rotate = isLeaving ? ep * Math.PI * 2 : (1 - ep) * -Math.PI * 2 * (1 - (isLeaving ? 0 : 1));
-          if (isLeaving) { rotate = ep * Math.PI * 2; alpha = 1 - ep; }
-          else           { rotate = (1 - ep) * -Math.PI; alpha = ep; }
-          break;
-        case "Slide":
-          if (isLeaving) { ox = -ep * (cardW + 20); alpha = 1 - ep; }
-          else           { ox = (1 - ep) * (cardW + 20); alpha = ep; }
-          break;
-        case "Flip":
-          scale = isLeaving ? Math.max(0.01, 1 - ep) : Math.max(0.01, ep);
-          alpha = isLeaving ? 1 - ep : ep;
-          break;
-        case "Pulse":
-          scale = isLeaving ? 1 + ep * 0.15 : Math.max(0.1, 1 - (1 - ep) * 0.15);
-          alpha = isLeaving ? 1 - ep : ep;
-          break;
-        case "Pop":
-          if (isLeaving) { scale = 1 + ep * 0.2; alpha = 1 - ep; }
-          else           { scale = 0.6 + ep * 0.4 * (1 + this.easeElastic(ep) * 0.15); alpha = ep; }
-          break;
-      }
+    // ── Card geometry ────────────────────────────────────────────────────────
+    const sc      = (state.socialScale ?? 100) / 100;
+    const pos     = state.socialPosition ?? { x: 2, y: 82 };
+    const cardH   = Math.round(H * 0.095 * sc);
+    const slabW   = Math.round(cardH * 1.08);   // square platform icon slab
+    const bodyW   = Math.round(W  * 0.255 * sc); // text body width
+    const totalW  = slabW + bodyW;
+    const r       = Math.round(cardH * 0.13);
+    const progH   = Math.max(3, Math.round(cardH * 0.042)); // progress strip
 
-      const cx = px + cardW / 2 + ox;
-      const cy = py + cardH / 2 + oy;
+    const baseX   = (pos.x / 100) * W;
+    const baseY   = (pos.y / 100) * H;
+    // slide=0 → card completely off-screen to the left; slide=1 → at baseX
+    const offX    = (1 - Math.max(0, Math.min(1.05, slide))) * -(totalW + baseX + 24);
+    const px      = baseX + offX;
+    const py      = baseY;
 
-      ctx.save();
-      ctx.globalAlpha *= Math.max(0, Math.min(1, alpha)) * this._panelAlpha;
-      ctx.translate(cx, cy);
-      ctx.rotate(rotate);
-      ctx.scale(scale, scale);
-      ctx.translate(-cx, -cy);
+    ctx.save();
+    ctx.globalAlpha *= this._panelAlpha;
 
-      // Drop shadow
-      ctx.shadowColor = "rgba(0,0,0,0.50)";
-      ctx.shadowBlur  = 14;
-      ctx.shadowOffsetY = 4;
+    // ── Drop shadow ──────────────────────────────────────────────────────────
+    ctx.shadowColor   = "rgba(0,0,0,0.60)";
+    ctx.shadowBlur    = 22;
+    ctx.shadowOffsetX = 3;
+    ctx.shadowOffsetY = 7;
 
-      // Card background
-      ctx.fillStyle = platform.bg;
-      this.fillRoundRect(px + ox, py + oy, cardW, cardH, r);
+    // ── Platform slab (left square, rounded left corners) ────────────────────
+    ctx.fillStyle = platform.bg;
+    this.fillRoundRect(px, py, slabW + r, cardH, r); // whole left section with rounded left
+    ctx.fillRect(px + slabW, py, r, cardH);            // fill the right-side overlap square
 
-      // Accent stripe on left
-      ctx.shadowBlur = 0;
+    // ── Body background (dark gradient, rounded right corners) ──────────────
+    ctx.shadowBlur = 0;
+    const grad = ctx.createLinearGradient(px + slabW, py, px + totalW, py);
+    grad.addColorStop(0, "rgba(10,10,22,0.97)");
+    grad.addColorStop(1, "rgba(26,24,44,0.94)");
+    ctx.fillStyle = grad;
+    this.fillRoundRect(px + slabW, py, bodyW, cardH, r);
+    ctx.fillRect(px + slabW, py, r, cardH);            // fill left-side overlap square
+
+    // ── Accent divider between slab and body ─────────────────────────────────
+    ctx.fillStyle   = platform.accent;
+    ctx.shadowBlur  = 8;
+    ctx.shadowColor = platform.accent;
+    ctx.fillRect(px + slabW - 2, py + Math.round(cardH * 0.18), 3, Math.round(cardH * 0.64));
+    ctx.shadowBlur  = 0;
+    ctx.shadowColor = "transparent";
+
+    // ── Platform icon in slab ────────────────────────────────────────────────
+    const iconFs = Math.round(cardH * 0.50);
+    ctx.fillStyle    = isSnap ? "#000" : "#fff";
+    ctx.font         = `900 ${iconFs}px sans-serif`;
+    ctx.textAlign    = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText(platform.icon, px + slabW / 2, py + cardH / 2);
+
+    // ── Platform label (small caps, dimmed) ──────────────────────────────────
+    const padL   = slabW + 11;
+    const nameFs = Math.round(cardH * 0.22);
+    ctx.fillStyle    = isSnap ? "rgba(0,0,0,0.40)" : "rgba(255,255,255,0.38)";
+    ctx.font         = `700 ${nameFs}px sans-serif`;
+    ctx.textAlign    = "left";
+    ctx.textBaseline = "top";
+    ctx.fillText(cur.platform.toUpperCase(), px + padL, py + Math.round(cardH * 0.11));
+
+    // ── Handle (large, bold, white) ──────────────────────────────────────────
+    const handleFs = Math.round(cardH * 0.385);
+    ctx.fillStyle    = isSnap ? "#111" : "#ffffff";
+    ctx.font         = `800 ${handleFs}px sans-serif`;
+    ctx.textBaseline = "bottom";
+    let displayHandle = cur.handle.startsWith("@") ? cur.handle : `@${cur.handle}`;
+    const maxW = bodyW - (padL - slabW) - 12;
+    while (ctx.measureText(displayHandle).width > maxW && displayHandle.length > 3) {
+      displayHandle = displayHandle.slice(0, -4) + "…";
+    }
+    ctx.fillText(displayHandle, px + padL, py + cardH - Math.round(cardH * 0.12) - progH);
+
+    // ── Progress bar (counts down remaining hold time) ───────────────────────
+    if (phaseT >= holdStart && phaseT < holdEnd) {
+      const barX = px + slabW;
+      const barY = py + cardH - progH;
+      const barW = bodyW;
+      // Track
+      ctx.fillStyle = "rgba(255,255,255,0.10)";
+      ctx.fillRect(barX, barY, barW, progH);
+      // Shrinking fill — shows time remaining
+      const remaining = Math.round(barW * (1 - holdP));
       ctx.fillStyle = platform.accent;
-      const stripeW = Math.round(cardH * 0.22);
-      this.fillRoundRect(px + ox, py + oy, stripeW + r, cardH, r);
-      ctx.fillRect(px + ox + r, py + oy, stripeW, cardH);
-
-      // Platform icon in stripe
-      const iconFs = Math.round(cardH * 0.42);
-      ctx.fillStyle = isSnap ? "#000" : "#fff";
-      ctx.font = `900 ${iconFs}px sans-serif`;
-      ctx.textAlign = "center";
-      ctx.textBaseline = "middle";
-      ctx.fillText(platform.icon, px + ox + stripeW / 2 + 2, py + oy + cardH / 2);
-
-      // Platform name (small)
-      const padL = stripeW + 10;
-      const nameFs = Math.round(cardH * 0.22);
-      ctx.fillStyle = isSnap ? "rgba(0,0,0,0.55)" : "rgba(255,255,255,0.55)";
-      ctx.font = `600 ${nameFs}px sans-serif`;
-      ctx.textAlign = "left";
-      ctx.textBaseline = "top";
-      ctx.fillText(handle.platform.toUpperCase(), px + ox + padL, py + oy + Math.round(cardH * 0.12));
-
-      // Handle / username
-      const handleFs = Math.round(cardH * 0.32);
-      ctx.fillStyle = textColor;
-      ctx.font = `700 ${handleFs}px sans-serif`;
-      ctx.textBaseline = "bottom";
-      let displayHandle = handle.handle.startsWith("@") ? handle.handle : `@${handle.handle}`;
-      while (ctx.measureText(displayHandle).width > cardW - padL - 8 && displayHandle.length > 3) {
-        displayHandle = displayHandle.slice(0, -4) + "…";
-      }
-      ctx.fillText(displayHandle, px + ox + padL, py + oy + cardH - Math.round(cardH * 0.12));
-
-      ctx.restore();
-    };
-
-    // Draw outgoing card (leaving)
-    if (tp > 0 && handles.length > 1) {
-      const prevIdx = (this.socialCurrentIdx === 0 ? handles.length - 1 : this.socialCurrentIdx - 1);
-      drawCard(handles[prevIdx], ep, true);
+      ctx.globalAlpha = ctx.globalAlpha * 0.85;
+      ctx.fillRect(barX, barY, remaining, progH);
     }
 
-    // Draw current card
-    if (tp === 0 || handles.length === 1) {
-      drawCard(cur, 1, false);
-    } else {
-      drawCard(cur, ep, false);
-    }
+    ctx.restore();
   }
 
   // ══════════════════════════════════════════════════════════════════════════
