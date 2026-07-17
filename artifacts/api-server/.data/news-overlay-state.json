@@ -1,24 +1,24 @@
 {
   "active": true,
   "previewMode": false,
-  "theme": "Sky News",
+  "theme": "Bloomberg",
   "customColors": {
-    "primary": "#0ea5e9",
-    "secondary": "#0369a1",
-    "background": "rgba(0,0,0,0.92)",
-    "text": "#ffffff",
-    "badge": "#0ea5e9",
-    "badgeText": "#ffffff"
+    "primary": "#f59e0b",
+    "secondary": "#d97706",
+    "background": "#0c0c0c",
+    "text": "rgba(255,255,255,0.88)",
+    "badge": "#f59e0b",
+    "badgeText": "#000000"
   },
   "customFont": {
-    "family": "Arial, sans-serif",
-    "size": 14,
-    "weight": 600,
-    "letterSpacing": 0.02
+    "family": "monospace",
+    "size": 13,
+    "weight": 500,
+    "letterSpacing": 0.06
   },
   "customBorder": {
     "width": 2,
-    "color": "#0ea5e9",
+    "color": "#f59e0b",
     "radius": 0
   },
   "customShadow": {
@@ -31,7 +31,7 @@
   "opacity": 1,
   "layout": {
     "position": {
-      "x": 9,
+      "x": 1,
       "y": 93
     },
     "width": 0,
@@ -43,9 +43,9 @@
   "logoUrl": "",
   "liveBadge": {
     "visible": true,
-    "label": "SKY NEWS",
+    "label": "MARKETS",
     "pulse": false,
-    "color": "#0ea5e9"
+    "color": "#f59e0b"
   },
   "headline": {
     "text": "Welcome to the live stream! Stay tuned for more upd",
