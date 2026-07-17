@@ -65,7 +65,7 @@
     "overridesTicker": false
   },
   "ticker": {
-    "style": "Sky News",
+    "style": "Bloomberg",
     "direction": "left",
     "speed": 54,
     "paused": false,
