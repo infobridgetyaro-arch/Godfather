@@ -676,7 +676,7 @@ export function NewsPanel({ activeStreamCount }: { activeStreamCount: number }) 
             </div>
           </Section>
 
-          <Section label="Visual Theme (when using Scroll)">
+          <Section label="Visual Theme">
             <PillSelect value={state.ticker.style} options={TICKER_STYLES} onChange={v => patch({ ticker: { ...state.ticker, style: v } })} />
           </Section>
 

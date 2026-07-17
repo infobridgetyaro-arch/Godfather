@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { getAuthToken } from "@/lib/queryClient";
 import { PlatformLogo, PLATFORM_BG, PLATFORM_ACCENT, PLATFORM_LIGHT } from "@/lib/platform-logos";
 
@@ -111,7 +111,6 @@ function PlatformCard({ platform, handle, enabled }: SocialHandle) {
       <div style={{
         background: accent, width: 56, height: 60, flexShrink: 0,
         display: "flex", alignItems: "center", justifyContent: "center",
-        animation: "so-card-spin 3s linear infinite",
       }}>
         <PlatformLogo platform={platform} size={26} color={light ? "#000" : "#fff"} />
       </div>
@@ -128,7 +127,57 @@ function PlatformCard({ platform, handle, enabled }: SocialHandle) {
           {handle.startsWith("@") ? handle : `@${handle}`}
         </div>
       </div>
-      <style>{`@keyframes so-card-spin { 0%{transform:rotate(0deg);} 100%{transform:rotate(360deg);} }`}</style>
+    </div>
+  );
+}
+
+// ── Cycling single-card preview ───────────────────────────────────────────────
+
+function CyclingPreview({
+  handles, animation, rotateInterval,
+}: { handles: SocialHandle[]; animation: SocialAnimation; rotateInterval: number }) {
+  const [idx, setIdx] = useState(0);
+  const [visible, setVisible] = useState(true);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const total = handles.length;
+
+  useEffect(() => {
+    if (total <= 1) return;
+    const schedule = () => {
+      timerRef.current = setTimeout(() => {
+        // fade out
+        setVisible(false);
+        setTimeout(() => {
+          setIdx(i => (i + 1) % total);
+          setVisible(true);
+          schedule();
+        }, 420); // cross-fade gap
+      }, rotateInterval * 1000);
+    };
+    schedule();
+    return () => { if (timerRef.current) clearTimeout(timerRef.current); };
+  }, [total, rotateInterval]);
+
+  // Reset to first card whenever the handle list changes
+  useEffect(() => { setIdx(0); setVisible(true); }, [total]);
+
+  const cur = handles[idx] ?? handles[0];
+  if (!cur) return null;
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+      <div style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase" }}>
+        Preview {total > 1 ? `(${idx + 1} / ${total})` : ""}
+      </div>
+      <div style={{
+        transition: "opacity 0.38s ease",
+        opacity: visible ? 1 : 0,
+      }}>
+        <PlatformCard {...cur} />
+      </div>
+      <div style={{ fontSize: 10, color: "rgba(255,255,255,0.25)" }}>
+        Cycles with <strong style={{ color: "rgba(255,255,255,0.45)" }}>{animation}</strong> animation every {rotateInterval}s on stream.
+      </div>
     </div>
   );
 }
@@ -377,16 +426,11 @@ export function SocialPanel() {
 
       {/* ── Live preview ── */}
       {state.handles.filter(h => h.enabled).length > 0 && (
-        <Section label="Preview">
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 8, padding: "8px 0" }}>
-            {state.handles.filter(h => h.enabled).map((h, i) => (
-              <PlatformCard key={i} {...h} />
-            ))}
-          </div>
-          <div style={{ fontSize: 10, color: "rgba(255,255,255,0.25)", marginTop: 2 }}>
-            Cards rotate with <strong style={{ color: "rgba(255,255,255,0.45)" }}>{state.animation}</strong> animation every {state.rotateInterval}s.
-          </div>
-        </Section>
+        <CyclingPreview
+          handles={state.handles.filter(h => h.enabled)}
+          animation={state.animation}
+          rotateInterval={state.rotateInterval}
+        />
       )}
 
     </div>

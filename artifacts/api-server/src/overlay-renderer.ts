@@ -3498,6 +3498,35 @@ export class OverlayRenderer {
   }
 
   /**
+   * Returns the accent/highlight colour for the currently selected Visual Theme
+   * (state.newsStyle).  Used by all motion modes so the Visual Theme applies
+   * regardless of which Motion Style is active.
+   * If the user has also set a custom newsBgColor that overrides the default,
+   * that colour takes priority.
+   */
+  private themeAccentColor(): string {
+    // User explicit override always wins
+    if (this.state.newsBgColor && this.state.newsBgColor !== "#cc0001") {
+      return this.state.newsBgColor;
+    }
+    // Per-theme defaults that match their scroll-mode appearance
+    switch (this.state.newsStyle) {
+      case "CNN":          return "#cc0000";
+      case "BBC":          return "#bb1919";
+      case "Bloomberg":    return "#ff6600";
+      case "Sky News":     return "#0369a1";
+      case "Neon Wire":    return "#00ff88";
+      case "Float Glass":  return "#60a5fa";
+      case "Sports":       return "#f59e0b";
+      case "Cinematic":    return "#e8d5a3";
+      case "Gold Luxury":  return "#d4af37";
+      case "Minimal":      return "#ffffff";
+      case "Al Jazeera":
+      default:             return this.state.newsBgColor || "#cc0001";
+    }
+  }
+
+  /**
    * Draw seamlessly looping text inside a clipped region.
    * After each full scroll the text pauses for TICKER_PAUSE_SECS before
    * starting the next scroll. textY is the baseline Y for ctx.fillText.
@@ -4115,7 +4144,7 @@ export class OverlayRenderer {
   private drawTickerStationary(t: number, yBase: number) {
     const { ctx, W, H, state } = this;
     const bh     = Math.max(40, Math.round(H * 0.065));
-    const accent = state.newsBgColor || "#cc0001";
+    const accent = this.themeAccentColor();
     const y      = yBase > 0 ? Math.min(H - bh - 6, yBase) : H - bh - 6;
 
     ctx.fillStyle = "rgba(4,4,12,0.95)"; ctx.fillRect(0, y, W, bh);
@@ -4156,7 +4185,7 @@ export class OverlayRenderer {
   private drawTickerFlap(t: number, yBase: number) {
     const { ctx, W, H, state } = this;
     const bh     = Math.max(42, Math.round(H * 0.068));
-    const accent = state.newsBgColor || "#f59e0b";
+    const accent = this.themeAccentColor();
     const y      = yBase > 0 ? Math.min(H - bh - 6, yBase) : H - bh - 6;
 
     // Dark charcoal background with amber accent stripe
@@ -4225,7 +4254,7 @@ export class OverlayRenderer {
   private drawTickerTypewriterMode(t: number, yBase: number) {
     const { ctx, W, H, state } = this;
     const bh     = Math.max(40, Math.round(H * 0.065));
-    const accent = state.newsBgColor || "#06b6d4";
+    const accent = this.themeAccentColor();
     const y      = yBase > 0 ? Math.min(H - bh - 6, yBase) : H - bh - 6;
 
     ctx.fillStyle = "rgba(2,6,12,0.97)"; ctx.fillRect(0, y, W, bh);
@@ -4277,7 +4306,7 @@ export class OverlayRenderer {
   private drawTickerWave(t: number, yBase: number) {
     const { ctx, W, H, state } = this;
     const bh     = Math.max(42, Math.round(H * 0.068));
-    const accent = state.newsBgColor || "#8b5cf6";
+    const accent = this.themeAccentColor();
     const y      = yBase > 0 ? Math.min(H - bh - 6, yBase) : H - bh - 6;
 
     ctx.fillStyle = "rgba(6,3,12,0.95)"; ctx.fillRect(0, y, W, bh);
@@ -4336,7 +4365,7 @@ export class OverlayRenderer {
   private drawTickerCarousel(t: number, yBase: number) {
     const { ctx, W, H, state } = this;
     const bh     = Math.max(44, Math.round(H * 0.070));
-    const accent = state.newsBgColor || "#ec4899";
+    const accent = this.themeAccentColor();
     const y      = yBase > 0 ? Math.min(H - bh - 6, yBase) : H - bh - 6;
 
     ctx.fillStyle = "rgba(4,2,8,0.96)"; ctx.fillRect(0, y, W, bh);
