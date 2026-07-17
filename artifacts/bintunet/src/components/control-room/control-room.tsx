@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, lazy, Suspense } from "react";
 import React from "react";
 import {
   Newspaper, Megaphone, Coffee, MessageSquare, BarChart2, Users,
@@ -8,16 +8,28 @@ import {
   Music, SkipForward, SkipBack, Pause, ListMusic, Trash2, Plus, Upload, RefreshCw,
   Radio as RadioIcon, LayoutGrid, Heart, Server,
 } from "lucide-react";
-import { StatsPanel } from "./stats-panel";
-import { MultiViewPanel } from "./multi-view-panel";
-import { AIPanel } from "./ai-panel";
-import { DonationPanel, type DonationRecord } from "./donation-panel";
+// Panel components — loaded lazily so their JS is fetched only when the tab is
+// first opened. GiftPopup is always rendered (top-level alert), so it stays eager.
+const StatsPanel      = lazy(() => import("./stats-panel").then(m => ({ default: m.StatsPanel })));
+const MultiViewPanel  = lazy(() => import("./multi-view-panel").then(m => ({ default: m.MultiViewPanel })));
+const AIPanel         = lazy(() => import("./ai-panel").then(m => ({ default: m.AIPanel })));
+const DonationPanel   = lazy(() => import("./donation-panel").then(m => ({ default: m.DonationPanel })));
+const YouTubeApiPanel = lazy(() => import("./youtube-api-panel").then(m => ({ default: m.YouTubeApiPanel })));
+const NewsPanel       = lazy(() => import("./news-panel").then(m => ({ default: m.NewsPanel })));
+const SocialPanel     = lazy(() => import("./social-panel").then(m => ({ default: m.SocialPanel })));
+const SystemPanel     = lazy(() => import("./system-panel").then(m => ({ default: m.SystemPanel })));
 import { GiftPopup, type GiftEvent } from "./gift-popup";
-import { YouTubeApiPanel } from "./youtube-api-panel";
-import { NewsPanel } from "./news-panel";
-import { SocialPanel } from "./social-panel";
-import { SystemPanel } from "./system-panel";
+import type { DonationRecord } from "./donation-panel";
 import { Key } from "lucide-react";
+
+// Tiny inline fallback shown while a lazy panel module is fetching
+function PanelSpinner() {
+  return (
+    <div style={{ padding: "20px 0", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, color: "rgba(255,255,255,0.25)", fontSize: 11 }}>
+      <Loader2 size={14} style={{ animation: "cr-spin 1s linear infinite" }} /> Loading…
+    </div>
+  );
+}
 import { useWebSocket } from "@/hooks/use-websocket";
 import { toast } from "sonner";
 
@@ -2196,7 +2208,9 @@ export function ControlRoom({ streams, streamStats, streamChat, streamProcStats 
 
           {/* ── AI CONTROLLER ── */}
           {activeTab === "ai" && (
-            <AIPanel activeStreamCount={activeStreamCount} />
+            <Suspense fallback={<PanelSpinner />}>
+              <AIPanel activeStreamCount={activeStreamCount} />
+            </Suspense>
           )}
 
           {/* ── STATS ── */}
@@ -2257,7 +2271,9 @@ export function ControlRoom({ streams, streamStats, streamChat, streamProcStats 
 
               {/* ── Analytics panel below ── */}
               <SectionDivider label="Stream Analytics" />
-              <StatsPanel streams={activeStreams} streamStats={streamStats} procStats={streamProcStats} />
+              <Suspense fallback={<PanelSpinner />}>
+                <StatsPanel streams={activeStreams} streamStats={streamStats} procStats={streamProcStats} />
+              </Suspense>
             </div>
           )}
 
@@ -2555,13 +2571,17 @@ export function ControlRoom({ streams, streamStats, streamChat, streamProcStats 
                   </div>
                 </div>
               </div>
-              <NewsPanel activeStreamCount={activeStreamCount} />
+              <Suspense fallback={<PanelSpinner />}>
+                <NewsPanel activeStreamCount={activeStreamCount} />
+              </Suspense>
             </div>
           )}
 
           {/* ── SOCIAL ── */}
           {activeTab === "social" && (
-            <SocialPanel />
+            <Suspense fallback={<PanelSpinner />}>
+              <SocialPanel />
+            </Suspense>
           )}
 
           {/* ── ALERTS ── */}
@@ -3624,13 +3644,15 @@ export function ControlRoom({ streams, streamStats, streamChat, streamProcStats 
               </div>
 
               {/* DonationPanel — live feed + QR + stats */}
-              <DonationPanel
-                latestDonation={latestDonation}
-                donationTickerActive={bs.donationTickerActive}
-                donationAlertActive={bs.donationAlertActive}
-                onToggleTicker={(active) => { localUpdate({ donationTickerActive: active }); update({ donationTickerActive: active }); }}
-                onToggleAlert={(active) => { localUpdate({ donationAlertActive: active }); update({ donationAlertActive: active }); }}
-              />
+              <Suspense fallback={<PanelSpinner />}>
+                <DonationPanel
+                  latestDonation={latestDonation}
+                  donationTickerActive={bs.donationTickerActive}
+                  donationAlertActive={bs.donationAlertActive}
+                  onToggleTicker={(active) => { localUpdate({ donationTickerActive: active }); update({ donationTickerActive: active }); }}
+                  onToggleAlert={(active) => { localUpdate({ donationAlertActive: active }); update({ donationAlertActive: active }); }}
+                />
+              </Suspense>
 
               <div style={{ padding: "8px 12px", borderRadius: 8, background: "rgba(34,197,94,0.04)", border: "1px solid rgba(34,197,94,0.12)", fontSize: 11, color: "rgba(255,255,255,0.35)", lineHeight: 1.6 }}>
                 SuperChats are collected via the public <strong style={{ color: "#22c55e" }}>/gateway-payment</strong> page. Share the QR code from the QR tab or copy the link directly from the SuperChat panel.
@@ -4482,16 +4504,22 @@ export function ControlRoom({ streams, streamStats, streamChat, streamProcStats 
 
           {/* ── STAGE / MULTI-VIEW ── */}
           {activeTab === "stage" && (
-            <MultiViewPanel streams={streams} procStats={streamProcStats} />
+            <Suspense fallback={<PanelSpinner />}>
+              <MultiViewPanel streams={streams} procStats={streamProcStats} />
+            </Suspense>
           )}
 
           {activeTab === "yt-api" && (
-            <YouTubeApiPanel />
+            <Suspense fallback={<PanelSpinner />}>
+              <YouTubeApiPanel />
+            </Suspense>
           )}
 
           {/* ── SYSTEM ── */}
           {activeTab === "system" && (
-            <SystemPanel />
+            <Suspense fallback={<PanelSpinner />}>
+              <SystemPanel />
+            </Suspense>
           )}
 
         </div>

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, lazy, Suspense } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -7,12 +7,13 @@ import { useWebSocket } from "@/hooks/use-websocket";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, getAuthToken } from "@/lib/queryClient";
 import { StreamCard } from "@/components/stream-card";
-import { ControlRoom } from "@/components/control-room/control-room";
-import { Plus, Radio, LogOut, Wifi, WifiOff, Link, Copy, RefreshCw, X, RotateCcw, Save, Settings, Monitor, MonitorOff, Trash2 } from "lucide-react";
+import { Plus, Radio, LogOut, Wifi, WifiOff, Link, Copy, RefreshCw, X, RotateCcw, Save, Settings, Monitor, MonitorOff, Trash2, Loader2 } from "lucide-react";
 import type { StreamConfig } from "@/types/schema";
-import { YoutubePanel } from "@/components/youtube-panel";
 import { useStreamDrafts } from "@/hooks/use-stream-drafts";
-import { SettingsModal } from "@/components/settings-modal";
+// Heavy components — lazy-loaded so they don't block the initial page paint
+const ControlRoom   = lazy(() => import("@/components/control-room/control-room").then(m => ({ default: m.ControlRoom })));
+const YoutubePanel  = lazy(() => import("@/components/youtube-panel").then(m => ({ default: m.YoutubePanel })));
+const SettingsModal = lazy(() => import("@/components/settings-modal").then(m => ({ default: m.SettingsModal })));
 
 interface ChatMessage {
   id: string;
@@ -610,8 +611,13 @@ export default function Dashboard() {
   return (
     <div className="min-h-screen bg-background">
       {showInvite && <InviteModal onClose={() => setShowInvite(false)} />}
-      {showSettings && <SettingsModal onClose={() => setShowSettings(false)} />}
+      {showSettings && (
+        <Suspense fallback={null}>
+          <SettingsModal onClose={() => setShowSettings(false)} />
+        </Suspense>
+      )}
       {ytMonitor && (
+        <Suspense fallback={null}>
         <YoutubePanel
           url={ytMonitor.url}
           label={ytMonitor.label}
@@ -643,6 +649,7 @@ export default function Dashboard() {
             } catch {}
           }}
         />
+        </Suspense>
       )}
 
       <header className="sticky top-0 z-40 border-b bg-card/90 backdrop-blur-md">
@@ -775,13 +782,19 @@ export default function Dashboard() {
       </header>
 
       <main className="max-w-5xl mx-auto px-4 py-6 space-y-6">
-        <ControlRoom
-          streams={streams}
-          streamStats={streamStats}
-          streamChat={streamChat}
-          streamProcStats={streamProcStats}
-          onForceRefreshChat={() => forcePollRef.current?.()}
-        />
+        <Suspense fallback={
+          <div className="flex items-center justify-center py-20">
+            <Loader2 className="w-8 h-8 animate-spin opacity-40" />
+          </div>
+        }>
+          <ControlRoom
+            streams={streams}
+            streamStats={streamStats}
+            streamChat={streamChat}
+            streamProcStats={streamProcStats}
+            onForceRefreshChat={() => forcePollRef.current?.()}
+          />
+        </Suspense>
 
         {showRestoreBanner && (() => {
           const drafts = loadDrafts();
