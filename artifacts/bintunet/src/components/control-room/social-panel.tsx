@@ -9,6 +9,7 @@ type SocialPlatform =
   | "X" | "Twitter" | "Twitch" | "Snapchat" | "LinkedIn" | "Discord";
 
 type SocialAnimation = "Spin" | "Slide" | "Flip" | "Pulse" | "Pop";
+type SocialStyle     = "Classic" | "Glass" | "White" | "Modern" | "Neon";
 
 interface SocialHandle {
   platform: SocialPlatform | string;
@@ -23,6 +24,7 @@ interface SocialOverlayState {
   rotateInterval: number;
   position: { x: number; y: number };
   scale: number;
+  style: SocialStyle;
 }
 
 // ── Platform config ───────────────────────────────────────────────────────────
@@ -45,6 +47,29 @@ const ANIMATIONS: { id: SocialAnimation; label: string; desc: string }[] = [
   { id: "Flip",  label: "⟲ Flip",  desc: "Card flips over like a tile" },
   { id: "Pulse", label: "● Pulse", desc: "Gentle scale pulse on entry/exit" },
   { id: "Pop",   label: "✦ Pop",   desc: "Elastic pop-in with overshoot bounce" },
+];
+
+const STYLES: { id: SocialStyle; label: string; desc: string; preview: React.CSSProperties }[] = [
+  {
+    id: "Classic", label: "Classic", desc: "Dark gradient body with platform slab",
+    preview: { background: "linear-gradient(90deg,#1877f2 36px,#0a0a16 36px)", borderRadius: 10 },
+  },
+  {
+    id: "Glass", label: "Glass", desc: "Frosted transparent look",
+    preview: { background: "rgba(255,255,255,0.15)", border: "1.5px solid rgba(255,255,255,0.32)", borderRadius: 14, backdropFilter: "blur(8px)" },
+  },
+  {
+    id: "White", label: "White", desc: "Clean white card with accent slab",
+    preview: { background: "linear-gradient(90deg,#1877f2 36px,#ffffff 36px)", borderRadius: 10 },
+  },
+  {
+    id: "Modern", label: "Modern", desc: "Full platform gradient, pill shape",
+    preview: { background: "linear-gradient(120deg,#1877f2,#667eea)", borderRadius: 999 },
+  },
+  {
+    id: "Neon", label: "Neon", desc: "Dark with glowing platform-colour border",
+    preview: { background: "rgba(4,4,16,0.95)", border: "2px solid #1877f2", boxShadow: "0 0 8px #1877f2", borderRadius: 10 },
+  },
 ];
 
 // ── API helpers ───────────────────────────────────────────────────────────────
@@ -198,7 +223,7 @@ function Section({ label, children }: { label: string; children: React.ReactNode
 export function SocialPanel() {
   const [state, setState] = useState<SocialOverlayState>({
     active: false, handles: [], animation: "Spin", rotateInterval: 8,
-    position: { x: 2, y: 82 }, scale: 100,
+    position: { x: 2, y: 82 }, scale: 100, style: "Classic",
   });
   const [loading, setLoading]           = useState(true);
   const [saving, setSaving]             = useState(false);
@@ -346,6 +371,33 @@ export function SocialPanel() {
             >Add</button>
           </div>
           {addError && <div style={{ fontSize: 10, color: "#f87171" }}>{addError}</div>}
+        </div>
+      </Section>
+
+      {/* ── Card style ── */}
+      <Section label="Card Style">
+        <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+          {STYLES.map(s => (
+            <button
+              key={s.id}
+              onClick={() => patch({ style: s.id })}
+              style={{
+                display: "flex", alignItems: "center", gap: 10,
+                padding: "7px 10px", borderRadius: 8, cursor: "pointer", textAlign: "left",
+                border: `1px solid ${state.style === s.id ? "rgba(167,139,250,0.5)" : "rgba(255,255,255,0.07)"}`,
+                background: state.style === s.id ? "rgba(167,139,250,0.12)" : "rgba(255,255,255,0.03)",
+                color: state.style === s.id ? "#c4b5fd" : "rgba(255,255,255,0.55)",
+                transition: "all 0.15s",
+              }}
+            >
+              {/* Mini style swatch */}
+              <div style={{ ...s.preview, width: 48, height: 22, flexShrink: 0 }} />
+              <div style={{ display: "flex", flexDirection: "column", gap: 1, minWidth: 0 }}>
+                <span style={{ fontSize: 11, fontWeight: 700 }}>{s.label}</span>
+                <span style={{ fontSize: 9, color: "rgba(255,255,255,0.28)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{s.desc}</span>
+              </div>
+            </button>
+          ))}
         </div>
       </Section>
 

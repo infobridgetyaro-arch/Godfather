@@ -206,6 +206,7 @@ interface BroadcastState {
   socialRotateInterval: number;
   socialPosition: { x: number; y: number };
   socialScale: number;
+  socialStyle: "Classic" | "Glass" | "White" | "Modern" | "Neon";
 }
 
 let broadcastState: BroadcastState = {
@@ -312,6 +313,7 @@ let broadcastState: BroadcastState = {
   socialRotateInterval: 8,
   socialPosition: { x: 2, y: 82 },
   socialScale: 100,
+  socialStyle: "Classic",
 };
 
 const uploadDir = path.join(process.cwd(), "uploads");
@@ -1491,6 +1493,7 @@ export async function registerBintunetRoutes(
       socialRotateInterval:   broadcastState.socialRotateInterval ?? 8,
       socialPosition:         broadcastState.socialPosition ?? { x: 2, y: 82 },
       socialScale:            broadcastState.socialScale ?? 100,
+      socialStyle:            broadcastState.socialStyle ?? "Classic",
     };
     // Only pass newsLogo when it was explicitly included in this request body.
     // This avoids a multi-millisecond base64 string comparison in updateState
@@ -1543,6 +1546,7 @@ export async function registerBintunetRoutes(
       rotateInterval:  broadcastState.socialRotateInterval ?? 8,
       position:        broadcastState.socialPosition ?? { x: 2, y: 82 },
       scale:           broadcastState.socialScale ?? 100,
+      style:           broadcastState.socialStyle ?? "Classic",
     });
   });
 
@@ -1554,6 +1558,7 @@ export async function registerBintunetRoutes(
     if (typeof b.rotateInterval    === "number")  broadcastState.socialRotateInterval   = Math.max(2, Math.min(60, b.rotateInterval));
     if (b.position && typeof b.position.x === "number") broadcastState.socialPosition   = b.position;
     if (typeof b.scale             === "number")  broadcastState.socialScale            = Math.max(50, Math.min(200, b.scale));
+    if (typeof b.style             === "string")  broadcastState.socialStyle            = b.style as typeof broadcastState.socialStyle;
     updateStreamOverlays({
       socialOverlayActive:  broadcastState.socialOverlayActive,
       socialHandles:        broadcastState.socialHandles,
@@ -1561,6 +1566,7 @@ export async function registerBintunetRoutes(
       socialRotateInterval: broadcastState.socialRotateInterval,
       socialPosition:       broadcastState.socialPosition,
       socialScale:          broadcastState.socialScale,
+      socialStyle:          broadcastState.socialStyle,
     });
     res.json({ ok: true });
   });

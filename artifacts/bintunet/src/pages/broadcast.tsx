@@ -66,6 +66,7 @@ interface BroadcastState {
   socialRotateInterval?: number;
   socialPosition?: OverlayPosition;
   socialScale?: number;
+  socialStyle?: string;
 }
 
 interface ChatMessage {
@@ -724,12 +725,13 @@ function ToastChat({ messages, isMobile }: { messages: ChatMessage[]; isMobile?:
 }
 /* ─── Social card overlay (browser-rendered) ─── */
 
-function SocialCardOverlay({ handles, animation, rotateInterval, position, scale }: {
+function SocialCardOverlay({ handles, animation, rotateInterval, position, scale, cardStyle }: {
   handles: Array<{ platform: string; handle: string; enabled: boolean }>;
   animation: string;
   rotateInterval: number;
   position: OverlayPosition;
   scale: number;
+  cardStyle?: string;
 }) {
   const enabled = handles.filter(h => h.enabled);
   const [idx, setIdx] = useState(0);
@@ -748,12 +750,11 @@ function SocialCardOverlay({ handles, animation, rotateInterval, position, scale
   }, [enabled.length, rotateInterval]);
 
   if (!enabled.length) return null;
-  const h = enabled[idx % enabled.length];
+  const h      = enabled[idx % enabled.length];
   const bg     = PLATFORM_BG[h.platform]     ?? "#1a1a2e";
   const accent = PLATFORM_ACCENT[h.platform] ?? "#667eea";
   const light  = PLATFORM_LIGHT[h.platform]  ?? false;
-  const textColor = light ? "#111" : "#fff";
-  const subColor  = light ? "rgba(0,0,0,0.55)" : "rgba(255,255,255,0.6)";
+  const handle = h.handle.startsWith("@") ? h.handle : `@${h.handle}`;
 
   const animKf = animation === "Spin"
     ? "sco-spin 0.5s cubic-bezier(0.34,1.56,0.64,1)"
@@ -763,7 +764,129 @@ function SocialCardOverlay({ handles, animation, rotateInterval, position, scale
     ? "sco-pulse 0.45s cubic-bezier(0.34,1.56,0.64,1)"
     : animation === "Pop"
     ? "sco-pop 0.5s cubic-bezier(0.34,1.56,0.64,1)"
-    : "sco-slide 0.4s cubic-bezier(0.22,1,0.36,1)"; // Slide default
+    : "sco-slide 0.4s cubic-bezier(0.22,1,0.36,1)";
+
+  // ── Style-specific card rendering ──────────────────────────────────────────
+  const style = cardStyle ?? "Classic";
+  let cardEl: React.ReactNode;
+
+  if (style === "Glass") {
+    cardEl = (
+      <div key={`${h.platform}|${h.handle}`} style={{
+        display: "flex", alignItems: "stretch", width: 320, height: 70,
+        borderRadius: 26, overflow: "hidden",
+        background: "rgba(255,255,255,0.15)",
+        border: "1.5px solid rgba(255,255,255,0.30)",
+        backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)",
+        boxShadow: "0 8px 32px rgba(0,0,0,0.50)",
+        animation: `${animKf} both`,
+      }}>
+        {/* Tinted left zone */}
+        <div style={{
+          width: 72, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center",
+          background: accent + "44",
+        }}>
+          <PlatformLogo platform={h.platform} size={30} color="#fff" />
+        </div>
+        <div style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "center", padding: "0 16px" }}>
+          <div style={{ fontSize: 9, color: "rgba(255,255,255,0.60)", fontWeight: 800, letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: 3 }}>{h.platform}</div>
+          <div style={{ fontSize: 17, color: "#fff", fontWeight: 800, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{handle}</div>
+        </div>
+      </div>
+    );
+
+  } else if (style === "White") {
+    cardEl = (
+      <div key={`${h.platform}|${h.handle}`} style={{
+        display: "flex", alignItems: "stretch", width: 320, height: 70,
+        borderRadius: 16, overflow: "hidden",
+        background: "#ffffff",
+        boxShadow: "0 8px 32px rgba(0,0,0,0.55), 0 2px 0 rgba(255,255,255,0.08)",
+        animation: `${animKf} both`,
+      }}>
+        <div style={{ background: bg, width: 70, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <PlatformLogo platform={h.platform} size={30} color={light ? "#000" : "#fff"} />
+        </div>
+        <div style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "center", padding: "0 16px" }}>
+          <div style={{ fontSize: 9, color: "rgba(0,0,0,0.38)", fontWeight: 800, letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: 3 }}>{h.platform}</div>
+          <div style={{ fontSize: 17, color: "#111", fontWeight: 800, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{handle}</div>
+        </div>
+      </div>
+    );
+
+  } else if (style === "Modern") {
+    cardEl = (
+      <div key={`${h.platform}|${h.handle}`} style={{
+        display: "flex", alignItems: "stretch", width: 320, height: 70,
+        borderRadius: 999, overflow: "hidden",
+        background: `linear-gradient(120deg, ${bg}, ${accent}cc)`,
+        boxShadow: "0 8px 32px rgba(0,0,0,0.65)",
+        animation: `${animKf} both`,
+      }}>
+        <div style={{ width: 70, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <PlatformLogo platform={h.platform} size={30} color={light ? "rgba(0,0,0,0.75)" : "rgba(255,255,255,0.90)"} />
+        </div>
+        <div style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "center", padding: "0 16px 0 0" }}>
+          <div style={{ fontSize: 9, color: light ? "rgba(0,0,0,0.55)" : "rgba(255,255,255,0.65)", fontWeight: 800, letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: 3 }}>{h.platform}</div>
+          <div style={{ fontSize: 17, color: light ? "#111" : "#fff", fontWeight: 800, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{handle}</div>
+        </div>
+      </div>
+    );
+
+  } else if (style === "Neon") {
+    cardEl = (
+      <div key={`${h.platform}|${h.handle}`} style={{
+        display: "flex", alignItems: "stretch", width: 320, height: 70,
+        borderRadius: 16, overflow: "hidden",
+        background: "rgba(4,4,16,0.95)",
+        border: `2px solid ${accent}`,
+        boxShadow: `0 0 18px ${accent}88, 0 8px 32px rgba(0,0,0,0.75)`,
+        animation: `${animKf} both`,
+      }}>
+        <div style={{ width: 70, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", background: accent + "1a" }}>
+          <PlatformLogo platform={h.platform} size={30} color={accent} />
+        </div>
+        {/* Neon divider */}
+        <div style={{ width: 2, background: accent, flexShrink: 0, boxShadow: `0 0 6px ${accent}` }} />
+        <div style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "center", padding: "0 16px" }}>
+          <div style={{ fontSize: 9, color: accent + "99", fontWeight: 800, letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: 3 }}>{h.platform}</div>
+          <div style={{ fontSize: 17, color: accent, fontWeight: 800, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", textShadow: `0 0 8px ${accent}` }}>{handle}</div>
+        </div>
+      </div>
+    );
+
+  } else {
+    // Classic (default)
+    cardEl = (
+      <div key={`${h.platform}|${h.handle}`} style={{
+        display: "flex", alignItems: "stretch",
+        borderRadius: 16, overflow: "hidden",
+        width: 320, height: 70,
+        boxShadow: "0 8px 32px rgba(0,0,0,0.7), 0 2px 0 rgba(255,255,255,0.08)",
+        animation: `${animKf} both`,
+      }}>
+        <div style={{
+          background: accent, width: 70, height: 70, flexShrink: 0,
+          display: "flex", alignItems: "center", justifyContent: "center",
+          animation: "sco-logo-spin 3s linear infinite",
+        }}>
+          <PlatformLogo platform={h.platform} size={32} color={light ? "#000" : "#fff"} />
+        </div>
+        <div style={{
+          background: bg, flex: 1, height: 70,
+          display: "flex", flexDirection: "column", justifyContent: "center",
+          padding: "0 18px",
+        }}>
+          <div style={{ fontSize: 10, color: light ? "rgba(0,0,0,0.55)" : "rgba(255,255,255,0.6)", fontWeight: 800, letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: 4 }}>
+            {h.platform}
+          </div>
+          <div style={{ fontSize: 18, color: light ? "#111" : "#fff", fontWeight: 800, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", letterSpacing: "-0.01em" }}>
+            {handle}
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div style={{
@@ -777,35 +900,7 @@ function SocialCardOverlay({ handles, animation, rotateInterval, position, scale
       opacity: visible ? 1 : 0,
       transition: "opacity 0.35s ease",
     }}>
-      <div key={`${h.platform}|${h.handle}`} style={{
-        display: "flex", alignItems: "stretch",
-        borderRadius: 24, overflow: "hidden",
-        width: 320, height: 70,
-        boxShadow: "0 8px 32px rgba(0,0,0,0.7), 0 2px 0 rgba(255,255,255,0.08)",
-        animation: `${animKf} both`,
-      }}>
-        {/* Logo slab — continuously spins */}
-        <div style={{
-          background: accent, width: 70, height: 70, flexShrink: 0,
-          display: "flex", alignItems: "center", justifyContent: "center",
-          animation: "sco-logo-spin 3s linear infinite",
-        }}>
-          <PlatformLogo platform={h.platform} size={32} color={light ? "#000" : "#fff"} />
-        </div>
-        {/* Info body */}
-        <div style={{
-          background: bg, flex: 1, height: 70,
-          display: "flex", flexDirection: "column", justifyContent: "center",
-          padding: "0 18px",
-        }}>
-          <div style={{ fontSize: 10, color: subColor, fontWeight: 800, letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: 4 }}>
-            {h.platform}
-          </div>
-          <div style={{ fontSize: 18, color: textColor, fontWeight: 800, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", letterSpacing: "-0.01em" }}>
-            {h.handle.startsWith("@") ? h.handle : `@${h.handle}`}
-          </div>
-        </div>
-      </div>
+      {cardEl}
       <style>{`
         @keyframes sco-logo-spin { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
         @keyframes sco-slide  { from{opacity:0;transform:translateX(60px)} to{opacity:1;transform:translateX(0)} }
@@ -2480,6 +2575,7 @@ export default function BroadcastPage() {
           rotateInterval={state.socialRotateInterval ?? 8}
           position={state.socialPosition ?? { x: 2, y: 82 }}
           scale={state.socialScale ?? 100}
+          cardStyle={state.socialStyle ?? "Classic"}
         />
       )}
 

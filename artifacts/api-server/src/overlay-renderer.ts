@@ -313,6 +313,7 @@ export interface OverlayState {
   socialRotateInterval: number;   // seconds per handle
   socialPosition: OverlayPosition;
   socialScale: number;
+  socialStyle: "Classic" | "Glass" | "White" | "Modern" | "Neon";
 }
 
 export function defaultOverlayState(): OverlayState {
@@ -424,6 +425,7 @@ export function defaultOverlayState(): OverlayState {
     socialRotateInterval: 8,
     socialPosition: { x: 2, y: 82 },
     socialScale: 100,
+    socialStyle: "Classic",
   };
 }
 
@@ -5635,76 +5637,235 @@ export class OverlayRenderer {
     ctx.save();
     ctx.globalAlpha *= this._panelAlpha;
 
-    // ── Drop shadow ──────────────────────────────────────────────────────────
-    ctx.shadowColor   = "rgba(0,0,0,0.60)";
-    ctx.shadowBlur    = 22;
-    ctx.shadowOffsetX = 3;
-    ctx.shadowOffsetY = 7;
+    const cardStyle = (state.socialStyle ?? "Classic") as string;
+    const padL      = slabW + 11;
+    const maxTxtW   = bodyW - (padL - slabW) - 12;
 
-    // ── Platform slab (left square, rounded left corners) ────────────────────
-    ctx.fillStyle = platform.bg;
-    this.fillRoundRect(px, py, slabW + r, cardH, r); // whole left section with rounded left
-    ctx.fillRect(px + slabW, py, r, cardH);            // fill the right-side overlap square
-
-    // ── Body background (dark gradient, rounded right corners) ──────────────
-    ctx.shadowBlur = 0;
-    const grad = ctx.createLinearGradient(px + slabW, py, px + totalW, py);
-    grad.addColorStop(0, "rgba(10,10,22,0.97)");
-    grad.addColorStop(1, "rgba(26,24,44,0.94)");
-    ctx.fillStyle = grad;
-    this.fillRoundRect(px + slabW, py, bodyW, cardH, r);
-    ctx.fillRect(px + slabW, py, r, cardH);            // fill left-side overlap square
-
-    // ── Accent divider between slab and body ─────────────────────────────────
-    ctx.fillStyle   = platform.accent;
-    ctx.shadowBlur  = 8;
-    ctx.shadowColor = platform.accent;
-    ctx.fillRect(px + slabW - 2, py + Math.round(cardH * 0.18), 3, Math.round(cardH * 0.64));
-    ctx.shadowBlur  = 0;
-    ctx.shadowColor = "transparent";
-
-    // ── Platform icon in slab ────────────────────────────────────────────────
-    const iconFs = Math.round(cardH * 0.50);
-    ctx.fillStyle    = isSnap ? "#000" : "#fff";
-    ctx.font         = `900 ${iconFs}px sans-serif`;
-    ctx.textAlign    = "center";
-    ctx.textBaseline = "middle";
-    ctx.fillText(platform.icon, px + slabW / 2, py + cardH / 2);
-
-    // ── Platform label (small caps, dimmed) ──────────────────────────────────
-    const padL   = slabW + 11;
-    const nameFs = Math.round(cardH * 0.22);
-    ctx.fillStyle    = isSnap ? "rgba(0,0,0,0.40)" : "rgba(255,255,255,0.38)";
-    ctx.font         = `700 ${nameFs}px sans-serif`;
-    ctx.textAlign    = "left";
-    ctx.textBaseline = "top";
-    ctx.fillText(cur.platform.toUpperCase(), px + padL, py + Math.round(cardH * 0.11));
-
-    // ── Handle (large, bold, white) ──────────────────────────────────────────
-    const handleFs = Math.round(cardH * 0.385);
-    ctx.fillStyle    = isSnap ? "#111" : "#ffffff";
-    ctx.font         = `800 ${handleFs}px sans-serif`;
-    ctx.textBaseline = "bottom";
+    // Pre-truncate handle text (shared across all styles)
     let displayHandle = cur.handle.startsWith("@") ? cur.handle : `@${cur.handle}`;
-    const maxW = bodyW - (padL - slabW) - 12;
-    while (ctx.measureText(displayHandle).width > maxW && displayHandle.length > 3) {
+    ctx.font = `800 ${Math.round(cardH * 0.385)}px sans-serif`;
+    while (ctx.measureText(displayHandle).width > maxTxtW && displayHandle.length > 3) {
       displayHandle = displayHandle.slice(0, -4) + "…";
     }
-    ctx.fillText(displayHandle, px + padL, py + cardH - Math.round(cardH * 0.12) - progH);
 
-    // ── Progress bar (counts down remaining hold time) ───────────────────────
-    if (phaseT >= holdStart && phaseT < holdEnd) {
-      const barX = px + slabW;
-      const barY = py + cardH - progH;
-      const barW = bodyW;
-      // Track
-      ctx.fillStyle = "rgba(255,255,255,0.10)";
-      ctx.fillRect(barX, barY, barW, progH);
-      // Shrinking fill — shows time remaining
-      const remaining = Math.round(barW * (1 - holdP));
+    // ── Drop shadow ──────────────────────────────────────────────────────────
+    ctx.shadowColor   = "rgba(0,0,0,0.55)";
+    ctx.shadowBlur    = 18;
+    ctx.shadowOffsetX = 2;
+    ctx.shadowOffsetY = 6;
+
+    if (cardStyle === "Glass") {
+      // ── GLASS — frosted semi-transparent card ───────────────────────────────
+      const glassR = Math.round(cardH * 0.36);
+      ctx.fillStyle = "rgba(255,255,255,0.15)";
+      this.fillRoundRect(px, py, totalW, cardH, glassR);
+      ctx.shadowBlur = 0;
+      // Subtle platform tint on left zone
+      ctx.fillStyle = platform.accent + "44";
+      this.fillRoundRect(px, py, slabW, cardH, glassR);
+      ctx.fillRect(px + glassR, py, slabW - glassR, cardH);
+      // White border
+      ctx.strokeStyle = "rgba(255,255,255,0.32)";
+      ctx.lineWidth   = 1.5;
+      this.strokeRoundRect(px, py, totalW, cardH, glassR, "rgba(255,255,255,0.32)", 1.5);
+      // Icon
+      ctx.fillStyle    = "#fff";
+      ctx.font         = `900 ${Math.round(cardH * 0.50)}px sans-serif`;
+      ctx.textAlign    = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText(platform.icon, px + slabW / 2, py + cardH / 2);
+      // Platform label
+      ctx.fillStyle    = "rgba(255,255,255,0.60)";
+      ctx.font         = `700 ${Math.round(cardH * 0.22)}px sans-serif`;
+      ctx.textAlign    = "left";
+      ctx.textBaseline = "top";
+      ctx.fillText(cur.platform.toUpperCase(), px + padL, py + Math.round(cardH * 0.13));
+      // Handle
+      ctx.fillStyle    = "#ffffff";
+      ctx.font         = `800 ${Math.round(cardH * 0.385)}px sans-serif`;
+      ctx.textBaseline = "bottom";
+      ctx.fillText(displayHandle, px + padL, py + cardH - Math.round(cardH * 0.13) - progH);
+      // Progress bar
+      if (phaseT >= holdStart && phaseT < holdEnd) {
+        ctx.fillStyle = "rgba(255,255,255,0.12)";
+        ctx.fillRect(px + slabW, py + cardH - progH, bodyW, progH);
+        ctx.fillStyle = "rgba(255,255,255,0.55)";
+        ctx.fillRect(px + slabW, py + cardH - progH, Math.round(bodyW * (1 - holdP)), progH);
+      }
+
+    } else if (cardStyle === "White") {
+      // ── WHITE — clean white card, platform accent slab ──────────────────────
+      const whiteR = Math.round(cardH * 0.22);
+      // Full white card first
+      ctx.fillStyle = "#ffffff";
+      this.fillRoundRect(px, py, totalW, cardH, whiteR);
+      ctx.shadowBlur = 0;
+      // Platform accent slab (rounded left, square right, blending into white)
+      ctx.fillStyle = platform.bg;
+      this.fillRoundRect(px, py, slabW + whiteR, cardH, whiteR);
+      ctx.fillRect(px + slabW, py, whiteR, cardH);
+      // Icon
+      ctx.fillStyle    = isSnap ? "#000" : "#fff";
+      ctx.font         = `900 ${Math.round(cardH * 0.50)}px sans-serif`;
+      ctx.textAlign    = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText(platform.icon, px + slabW / 2, py + cardH / 2);
+      // Platform label (on white body)
+      ctx.fillStyle    = "rgba(0,0,0,0.38)";
+      ctx.font         = `700 ${Math.round(cardH * 0.22)}px sans-serif`;
+      ctx.textAlign    = "left";
+      ctx.textBaseline = "top";
+      ctx.fillText(cur.platform.toUpperCase(), px + padL, py + Math.round(cardH * 0.12));
+      // Handle (dark)
+      ctx.fillStyle    = "#111111";
+      ctx.font         = `800 ${Math.round(cardH * 0.385)}px sans-serif`;
+      ctx.textBaseline = "bottom";
+      ctx.fillText(displayHandle, px + padL, py + cardH - Math.round(cardH * 0.12) - progH);
+      // Progress bar (platform accent color)
+      if (phaseT >= holdStart && phaseT < holdEnd) {
+        ctx.fillStyle = "rgba(0,0,0,0.08)";
+        ctx.fillRect(px + slabW, py + cardH - progH, bodyW, progH);
+        ctx.fillStyle = platform.accent;
+        ctx.fillRect(px + slabW, py + cardH - progH, Math.round(bodyW * (1 - holdP)), progH);
+      }
+
+    } else if (cardStyle === "Modern") {
+      // ── MODERN — full platform gradient, pill shape, no slab divide ─────────
+      const pillR  = Math.round(cardH * 0.50);  // perfect pill
+      const grad   = ctx.createLinearGradient(px, py, px + totalW, py + cardH);
+      grad.addColorStop(0, platform.bg);
+      grad.addColorStop(1, platform.accent + "cc");
+      ctx.fillStyle = grad;
+      this.fillRoundRect(px, py, totalW, cardH, pillR);
+      ctx.shadowBlur = 0;
+      // Icon (left zone)
+      ctx.fillStyle    = isSnap ? "rgba(0,0,0,0.75)" : "rgba(255,255,255,0.90)";
+      ctx.font         = `900 ${Math.round(cardH * 0.48)}px sans-serif`;
+      ctx.textAlign    = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText(platform.icon, px + slabW / 2, py + cardH / 2);
+      // Platform label
+      ctx.fillStyle    = isSnap ? "rgba(0,0,0,0.55)" : "rgba(255,255,255,0.65)";
+      ctx.font         = `700 ${Math.round(cardH * 0.21)}px sans-serif`;
+      ctx.textAlign    = "left";
+      ctx.textBaseline = "top";
+      ctx.fillText(cur.platform.toUpperCase(), px + slabW + 8, py + Math.round(cardH * 0.12));
+      // Handle
+      ctx.fillStyle    = isSnap ? "#111" : "#ffffff";
+      ctx.font         = `800 ${Math.round(cardH * 0.385)}px sans-serif`;
+      ctx.textBaseline = "bottom";
+      ctx.fillText(displayHandle, px + slabW + 8, py + cardH - Math.round(cardH * 0.12) - progH);
+      // Progress bar (white)
+      if (phaseT >= holdStart && phaseT < holdEnd) {
+        ctx.fillStyle = "rgba(255,255,255,0.18)";
+        ctx.fillRect(px + slabW, py + cardH - progH, bodyW, progH);
+        ctx.fillStyle = "rgba(255,255,255,0.70)";
+        ctx.fillRect(px + slabW, py + cardH - progH, Math.round(bodyW * (1 - holdP)), progH);
+      }
+
+    } else if (cardStyle === "Neon") {
+      // ── NEON — deep dark bg, glowing border, neon-coloured text ────────────
+      const neonR = Math.round(cardH * 0.22);
+      ctx.fillStyle = "rgba(4,4,16,0.95)";
+      this.fillRoundRect(px, py, totalW, cardH, neonR);
+      ctx.shadowBlur = 0;
+      // Glowing border
+      this.strokeRoundRect(px, py, totalW, cardH, neonR, platform.accent, 2.5);
+      ctx.shadowBlur  = 18;
+      ctx.shadowColor = platform.accent;
+      ctx.strokeStyle = platform.accent;
+      ctx.lineWidth   = 2.5;
+      this.strokeRoundRect(px, py, totalW, cardH, neonR, platform.accent, 2.5);
+      ctx.shadowBlur  = 0;
+      ctx.shadowColor = "transparent";
+      // Subtle left accent zone
+      ctx.fillStyle = platform.accent + "1a";
+      this.fillRoundRect(px, py, slabW + neonR, cardH, neonR);
+      ctx.fillRect(px + neonR, py, slabW - neonR, cardH);
+      // Icon (neon glow)
+      ctx.shadowBlur  = 12;
+      ctx.shadowColor = platform.accent;
+      ctx.fillStyle   = platform.accent;
+      ctx.font         = `900 ${Math.round(cardH * 0.50)}px sans-serif`;
+      ctx.textAlign    = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText(platform.icon, px + slabW / 2, py + cardH / 2);
+      ctx.shadowBlur = 0; ctx.shadowColor = "transparent";
+      // Divider line
       ctx.fillStyle = platform.accent;
-      ctx.globalAlpha = ctx.globalAlpha * 0.85;
-      ctx.fillRect(barX, barY, remaining, progH);
+      ctx.fillRect(px + slabW - 2, py + Math.round(cardH * 0.18), 2, Math.round(cardH * 0.64));
+      // Platform label (dim accent)
+      ctx.fillStyle    = platform.accent + "99";
+      ctx.font         = `700 ${Math.round(cardH * 0.22)}px sans-serif`;
+      ctx.textAlign    = "left";
+      ctx.textBaseline = "top";
+      ctx.fillText(cur.platform.toUpperCase(), px + padL, py + Math.round(cardH * 0.11));
+      // Handle (full neon glow)
+      ctx.shadowBlur  = 10;
+      ctx.shadowColor = platform.accent;
+      ctx.fillStyle   = platform.accent;
+      ctx.font         = `800 ${Math.round(cardH * 0.385)}px sans-serif`;
+      ctx.textBaseline = "bottom";
+      ctx.fillText(displayHandle, px + padL, py + cardH - Math.round(cardH * 0.12) - progH);
+      ctx.shadowBlur = 0; ctx.shadowColor = "transparent";
+      // Progress bar (neon glow)
+      if (phaseT >= holdStart && phaseT < holdEnd) {
+        ctx.fillStyle = "rgba(255,255,255,0.06)";
+        ctx.fillRect(px + slabW, py + cardH - progH, bodyW, progH);
+        ctx.shadowBlur = 6; ctx.shadowColor = platform.accent;
+        ctx.fillStyle  = platform.accent;
+        ctx.fillRect(px + slabW, py + cardH - progH, Math.round(bodyW * (1 - holdP)), progH);
+        ctx.shadowBlur = 0;
+      }
+
+    } else {
+      // ── CLASSIC (default) — dark slab + gradient body ───────────────────────
+      ctx.shadowColor   = "rgba(0,0,0,0.60)";
+      ctx.shadowBlur    = 22;
+      ctx.shadowOffsetX = 3;
+      ctx.shadowOffsetY = 7;
+      // Platform slab (rounded left corners)
+      ctx.fillStyle = platform.bg;
+      this.fillRoundRect(px, py, slabW + r, cardH, r);
+      ctx.fillRect(px + slabW, py, r, cardH);
+      // Body (dark gradient, rounded right corners)
+      ctx.shadowBlur = 0;
+      const grad = ctx.createLinearGradient(px + slabW, py, px + totalW, py);
+      grad.addColorStop(0, "rgba(10,10,22,0.97)");
+      grad.addColorStop(1, "rgba(26,24,44,0.94)");
+      ctx.fillStyle = grad;
+      this.fillRoundRect(px + slabW, py, bodyW, cardH, r);
+      ctx.fillRect(px + slabW, py, r, cardH);
+      // Accent divider
+      ctx.fillStyle   = platform.accent;
+      ctx.shadowBlur  = 8; ctx.shadowColor = platform.accent;
+      ctx.fillRect(px + slabW - 2, py + Math.round(cardH * 0.18), 3, Math.round(cardH * 0.64));
+      ctx.shadowBlur  = 0; ctx.shadowColor = "transparent";
+      // Icon
+      ctx.fillStyle    = isSnap ? "#000" : "#fff";
+      ctx.font         = `900 ${Math.round(cardH * 0.50)}px sans-serif`;
+      ctx.textAlign    = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText(platform.icon, px + slabW / 2, py + cardH / 2);
+      // Platform label
+      ctx.fillStyle    = isSnap ? "rgba(0,0,0,0.40)" : "rgba(255,255,255,0.38)";
+      ctx.font         = `700 ${Math.round(cardH * 0.22)}px sans-serif`;
+      ctx.textAlign    = "left";
+      ctx.textBaseline = "top";
+      ctx.fillText(cur.platform.toUpperCase(), px + padL, py + Math.round(cardH * 0.11));
+      // Handle
+      ctx.fillStyle    = isSnap ? "#111" : "#ffffff";
+      ctx.font         = `800 ${Math.round(cardH * 0.385)}px sans-serif`;
+      ctx.textBaseline = "bottom";
+      ctx.fillText(displayHandle, px + padL, py + cardH - Math.round(cardH * 0.12) - progH);
+      // Progress bar
+      if (phaseT >= holdStart && phaseT < holdEnd) {
+        ctx.fillStyle = "rgba(255,255,255,0.10)";
+        ctx.fillRect(px + slabW, py + cardH - progH, bodyW, progH);
+        ctx.fillStyle   = platform.accent;
+        ctx.globalAlpha = ctx.globalAlpha * 0.85;
+        ctx.fillRect(px + slabW, py + cardH - progH, Math.round(bodyW * (1 - holdP)), progH);
+      }
     }
 
     ctx.restore();
