@@ -3569,572 +3569,781 @@ export class OverlayRenderer {
     });
   }
 
-  // ── 1. Al Jazeera style — squared badge, red left block, clean bold text ───
+  // ══════════════════════════════════════════════════════════════════════════
+  // ── VISUAL THEMES — Pro-Max studio-grade two-tier broadcast tickers ─────────
+  // Layout: top bar = static headline/label | bottom bar = live scrolling ticker
+  // Shared helper: pulsing live dot drawn per-style for accuracy.
+  // ══════════════════════════════════════════════════════════════════════════
+
+  // ── 1. Al Jazeera — deep dark two-tier, red chevron slab, bold headline ─────
   private drawTickerAlJazeera(t: number, yBase: number) {
     const { ctx, W, H, state } = this;
-    const bh     = Math.max(38, Math.round(H * 0.062));
     const accent = state.newsBgColor || "#cc0001";
-    const y      = yBase > 0 ? Math.min(H - bh - 6, yBase) : H - bh - 6;
+    const bh  = Math.max(38, Math.round(H * 0.058));   // headline row
+    const th  = Math.max(32, Math.round(H * 0.050));   // ticker row
+    const yTop  = yBase > 0 ? Math.min(H - bh - th - 4, yBase) : H - bh - th - 4;
+    const yTick = yTop + bh;
 
-    // Full dark bar — sharp edges (Al Jazeera style, no radius)
-    ctx.fillStyle = "rgba(4,4,12,0.96)";
-    ctx.fillRect(0, y, W, bh);
+    // ── Headline bar ─────────────────────────────────────────────────────────
+    ctx.fillStyle = "rgba(3,3,10,0.98)"; ctx.fillRect(0, yTop, W, bh);
 
-    // 3px red bottom stripe
-    ctx.fillStyle = accent;
-    ctx.fillRect(0, y + bh - 3, W, 3);
+    // Red slab — gradient depth
+    const sw = Math.round(W * 0.18);
+    const sg = ctx.createLinearGradient(0, yTop, sw, yTop + bh);
+    sg.addColorStop(0, accent); sg.addColorStop(1, "#7a0000");
+    ctx.fillStyle = sg; ctx.fillRect(0, yTop, sw, bh);
 
-    // Left badge — solid accent block
-    const badgeW = this.newsLogoImg ? Math.round(bh * 2.2) : Math.round(bh * 2.4);
-    ctx.fillStyle = accent;
-    ctx.fillRect(0, y, badgeW, bh);
-
-    // Badge content
-    if (this.newsLogoImg) {
-      const img = this.newsLogoImg;
-      const pad = Math.round(bh * 0.14);
-      const maxH = bh - pad * 2;
-      const sc   = Math.min(maxH / img.height, (badgeW - pad * 2) / img.width);
-      const dw = Math.round(img.width * sc); const dh = Math.round(img.height * sc);
-      ctx.save(); ctx.beginPath(); ctx.rect(0, y, badgeW, bh); ctx.clip();
-      ctx.drawImage(img, Math.round((badgeW - dw) / 2), y + Math.round((bh - dh) / 2), dw, dh);
-      ctx.restore();
-    } else {
-      const label = (state.newsTitle || "● LIVE").toUpperCase();
-      ctx.fillStyle = "#fff"; ctx.font = `900 ${Math.round(bh * 0.31)}px sans-serif`;
-      ctx.textAlign = "center"; ctx.textBaseline = "middle";
-      ctx.fillText(label, badgeW / 2, y + bh / 2);
-    }
-
-    // Thin white separator
-    ctx.fillStyle = "rgba(255,255,255,0.18)";
-    ctx.fillRect(badgeW, y + bh * 0.12, 1, bh * 0.76);
-
-    // Scrolling text
-    const areaX = badgeW + 14; const areaW = W - areaX - 8;
-    const fs = Math.round(bh * 0.34);
-    this.drawScrollText(areaX, y + 2, areaW, bh - 4, 0,
-      y + bh / 2, state.newsText, `600 ${fs}px sans-serif`,
-      "rgba(240,240,240,0.97)", t, this.newsScrollStartT);
-  }
-
-  // ── 2. CNN style — charcoal bar, bold scarlet badge, heavy uppercase text ──
-  private drawTickerCNN(t: number, yBase: number) {
-    const { ctx, W, H, state } = this;
-    const bh     = Math.max(40, Math.round(H * 0.066));
-    const accent = state.newsBgColor || "#c00000";
-    const y      = yBase > 0 ? Math.min(H - bh - 6, yBase) : H - bh - 6;
-
-    // Deep charcoal bar
-    ctx.fillStyle = "rgba(18,18,22,0.97)";
-    ctx.fillRect(0, y, W, bh);
-
-    // Red top line (thin)
-    ctx.fillStyle = accent;
-    ctx.fillRect(0, y, W, 3);
-
-    // Bold rectangular badge — left edge flush
-    const bw2 = this.newsLogoImg ? Math.round(bh * 2.0) : Math.round(bh * 2.2);
-    const g   = ctx.createLinearGradient(0, y, 0, y + bh);
-    g.addColorStop(0, accent); g.addColorStop(1, `${accent}cc`);
-    ctx.fillStyle = g; ctx.fillRect(0, y + 3, bw2, bh - 3);
-
-    if (this.newsLogoImg) {
-      const img = this.newsLogoImg;
-      const pad = Math.round(bh * 0.15);
-      const maxH = bh - pad * 2;
-      const sc = Math.min(maxH / img.height, (bw2 - pad * 2) / img.width);
-      const dw = Math.round(img.width * sc); const dh = Math.round(img.height * sc);
-      ctx.save(); ctx.beginPath(); ctx.rect(0, y, bw2, bh); ctx.clip();
-      ctx.drawImage(img, Math.round((bw2 - dw) / 2), y + Math.round((bh - dh) / 2), dw, dh);
-      ctx.restore();
-    } else {
-      const label = (state.newsTitle || "CNN").toUpperCase();
-      ctx.fillStyle = "#fff"; ctx.font = `900 ${Math.round(bh * 0.36)}px sans-serif`;
-      ctx.textAlign = "center"; ctx.textBaseline = "middle";
-      ctx.shadowColor = "rgba(0,0,0,0.4)"; ctx.shadowBlur = 3;
-      ctx.fillText(label, bw2 / 2, y + bh / 2 + 1);
-      ctx.shadowBlur = 0;
-    }
-
-    // ▸ triangle pointer on right edge of badge
+    // Chevron right edge of slab
     ctx.fillStyle = accent;
     ctx.beginPath();
-    ctx.moveTo(bw2, y + 3); ctx.lineTo(bw2 + 14, y + bh / 2); ctx.lineTo(bw2, y + bh);
+    ctx.moveTo(sw, yTop); ctx.lineTo(sw + 20, yTop + bh / 2); ctx.lineTo(sw, yTop + bh);
     ctx.fill();
 
-    // Separator gap — use pointer as separator
-    const areaX = bw2 + 18; const areaW = W - areaX - 8;
-    const fs    = Math.round(bh * 0.33);
-    this.drawScrollText(areaX, y + 2, areaW, bh - 4, 0,
-      y + bh / 2, state.newsText, `700 ${fs}px sans-serif`,
-      "rgba(240,240,240,0.97)", t, this.newsScrollStartT);
-  }
-
-  // ── 3. BBC style — navy/dark bar, BBC red pill, tight white text ────────────
-  private drawTickerBBC(t: number, yBase: number) {
-    const { ctx, W, H, state } = this;
-    const bh     = Math.max(38, Math.round(H * 0.062));
-    const accent = state.newsBgColor || "#bb1919";
-    const r      = Math.round(bh * 0.16);   // subtle rounding
-    const y      = yBase > 0 ? Math.min(H - bh - 6, yBase) : H - bh - 6;
-
-    // Dark bar with slight blue tint (BBC look)
-    ctx.fillStyle = "rgba(6,10,28,0.97)";
-    this.roundRect(0, y, W, bh, r); ctx.fill();
-
-    // 4px vertical accent stripe on far left
-    ctx.fillStyle = accent; ctx.fillRect(0, y, 4, bh);
-
-    // Badge — compact pill with rounded corners
-    const bw2 = this.newsLogoImg ? Math.round(bh * 1.8) : Math.round(bh * 1.7);
-    const bx  = 10; const by = y + Math.round(bh * 0.12);
-    const bH2 = Math.round(bh * 0.76);
-    this.roundRect(bx, by, bw2, bH2, Math.round(bH2 * 0.3));
-    ctx.fillStyle = accent; ctx.fill();
-
+    // Channel / breaking label
     if (this.newsLogoImg) {
-      const img = this.newsLogoImg;
-      const pad = Math.round(bH2 * 0.15);
-      const maxH = bH2 - pad * 2;
-      const sc = Math.min(maxH / img.height, (bw2 - pad * 2) / img.width);
-      const dw = Math.round(img.width * sc); const dh = Math.round(img.height * sc);
-      ctx.save(); this.roundRect(bx, by, bw2, bH2, Math.round(bH2 * 0.3)); ctx.clip();
-      ctx.drawImage(img, bx + Math.round((bw2 - dw) / 2), by + Math.round((bH2 - dh) / 2), dw, dh);
+      const img = this.newsLogoImg; const pad = Math.round(bh * 0.12);
+      const sc  = Math.min((bh - pad * 2) / img.height, (sw - pad * 2) / img.width);
+      const dw  = Math.round(img.width * sc); const dh = Math.round(img.height * sc);
+      ctx.save(); ctx.beginPath(); ctx.rect(0, yTop, sw, bh); ctx.clip();
+      ctx.drawImage(img, Math.round((sw - dw) / 2), yTop + Math.round((bh - dh) / 2), dw, dh);
       ctx.restore();
     } else {
-      const label = (state.newsTitle || "BBC NEWS").toUpperCase();
-      ctx.fillStyle = "#fff"; ctx.font = `900 ${Math.round(bH2 * 0.40)}px sans-serif`;
+      ctx.fillStyle = "#fff"; ctx.font = `900 ${Math.round(bh * 0.40)}px sans-serif`;
       ctx.textAlign = "center"; ctx.textBaseline = "middle";
-      ctx.fillText(label, bx + bw2 / 2, by + bH2 / 2);
+      ctx.fillText((state.newsTitle || "BREAKING NEWS").toUpperCase(), sw / 2, yTop + bh / 2);
     }
 
-    // Separator
-    const sepX = bx + bw2 + 10;
-    ctx.fillStyle = "rgba(255,255,255,0.14)"; ctx.fillRect(sepX, y + bh * 0.15, 1, bh * 0.70);
+    // Headline text (static, truncated to bar width)
+    const hx = sw + 24; const hmaxW = W - hx - 16;
+    ctx.font = `600 ${Math.round(bh * 0.36)}px sans-serif`;
+    let hl = state.newsText;
+    while (ctx.measureText(hl).width > hmaxW && hl.length > 5) hl = hl.slice(0, -4) + "…";
+    ctx.fillStyle = "rgba(238,235,228,0.96)"; ctx.textAlign = "left"; ctx.textBaseline = "middle";
+    ctx.fillText(hl, hx, yTop + bh / 2);
 
-    // Scrolling text
-    const areaX = sepX + 10; const areaW = W - areaX - 8;
-    const fs    = Math.round(bh * 0.32);
-    this.drawScrollText(areaX, y + 2, areaW, bh - 4, Math.max(0, r - 2),
-      y + bh / 2, state.newsText, `600 ${fs}px sans-serif`,
-      "rgba(230,230,235,0.97)", t, this.newsScrollStartT);
+    // Gradient accent separator
+    const sg2 = ctx.createLinearGradient(0, 0, W, 0);
+    sg2.addColorStop(0, accent); sg2.addColorStop(0.45, "#ff5555"); sg2.addColorStop(1, accent);
+    ctx.fillStyle = sg2; ctx.fillRect(0, yTop + bh - 2, W, 2);
+
+    // ── Ticker bar ───────────────────────────────────────────────────────────
+    ctx.fillStyle = "rgba(8,5,5,0.97)"; ctx.fillRect(0, yTick, W, th);
+    ctx.fillStyle = accent; ctx.fillRect(0, yTick + th - 3, W, 3);
+
+    // Pulsing live dot
+    const pulse = 0.5 + 0.5 * Math.sin(t * 4.5);
+    ctx.fillStyle = accent; ctx.shadowColor = accent; ctx.shadowBlur = 12 * pulse;
+    ctx.beginPath(); ctx.arc(13, yTick + th / 2, Math.round(th * 0.15), 0, Math.PI * 2); ctx.fill();
+    ctx.shadowBlur = 0; ctx.shadowColor = "transparent";
+
+    ctx.fillStyle = "rgba(255,255,255,0.52)"; ctx.font = `700 ${Math.round(th * 0.31)}px sans-serif`;
+    ctx.textAlign = "left"; ctx.textBaseline = "middle";
+    ctx.fillText("NEWS", 28, yTick + th / 2);
+    const lx = 28 + ctx.measureText("NEWS").width + 12;
+    ctx.fillStyle = "rgba(255,255,255,0.13)"; ctx.fillRect(lx, yTick + th * 0.15, 1, th * 0.70);
+    this.drawScrollText(lx + 10, yTick + 2, W - lx - 16, th - 4, 0,
+      yTick + th / 2, state.newsText, `600 ${Math.round(th * 0.37)}px sans-serif`,
+      "rgba(242,240,234,0.97)", t, this.newsScrollStartT);
   }
 
-  // ── 4. Bloomberg style — matte black, amber/gold, financial terminal feel ──
-  private drawTickerBloomberg(t: number, yBase: number) {
+  // ── 2. CNN — scarlet two-tier, angled badge, heavy BREAKING banner ───────────
+  private drawTickerCNN(t: number, yBase: number) {
     const { ctx, W, H, state } = this;
-    const bh     = Math.max(36, Math.round(H * 0.058));
-    const accent = state.newsBgColor || "#f59e0b";
-    const y      = yBase > 0 ? Math.min(H - bh - 4, yBase) : H - bh - 4;
+    const accent = state.newsBgColor || "#cc0000";
+    const bh  = Math.max(38, Math.round(H * 0.058));
+    const th  = Math.max(32, Math.round(H * 0.050));
+    const yTop  = yBase > 0 ? Math.min(H - bh - th - 4, yBase) : H - bh - th - 4;
+    const yTick = yTop + bh;
 
-    // Matte near-black bar
-    ctx.fillStyle = "rgba(8,8,10,0.98)";
-    ctx.fillRect(0, y, W, bh);
+    // ── Headline bar ─────────────────────────────────────────────────────────
+    // Charcoal base
+    ctx.fillStyle = "rgba(14,14,18,0.98)"; ctx.fillRect(0, yTop, W, bh);
+    // Thin scarlet top line
+    ctx.fillStyle = accent; ctx.fillRect(0, yTop, W, 3);
 
-    // Thin top gold line
-    const lineG = ctx.createLinearGradient(0, 0, W, 0);
-    lineG.addColorStop(0, accent); lineG.addColorStop(0.5, "#fde68a"); lineG.addColorStop(1, accent);
-    ctx.fillStyle = lineG; ctx.fillRect(0, y, W, 2);
-
-    // Badge — gold angled block
-    const bw2 = this.newsLogoImg ? Math.round(bh * 2.1) : Math.round(bh * 2.4);
-    ctx.fillStyle = accent;
-    ctx.fillRect(0, y + 2, bw2, bh - 2);
-
-    // Angled right edge for dynamic look
-    ctx.fillStyle = accent;
-    ctx.beginPath(); ctx.moveTo(bw2, y + 2); ctx.lineTo(bw2 + 12, y + 2);
-    ctx.lineTo(bw2, y + bh); ctx.fill();
-
-    if (this.newsLogoImg) {
-      const img = this.newsLogoImg;
-      const pad = Math.round(bh * 0.12);
-      const maxH = bh - pad * 2;
-      const sc = Math.min(maxH / img.height, (bw2 - pad * 2) / img.width);
-      const dw = Math.round(img.width * sc); const dh = Math.round(img.height * sc);
-      ctx.save(); ctx.beginPath(); ctx.rect(0, y, bw2, bh); ctx.clip();
-      ctx.drawImage(img, Math.round((bw2 - dw) / 2), y + Math.round((bh - dh) / 2), dw, dh);
-      ctx.restore();
-    } else {
-      const label = (state.newsTitle || "BLOOMBERG").toUpperCase();
-      ctx.fillStyle = "#000"; ctx.font = `900 ${Math.round(bh * 0.29)}px sans-serif`;
-      ctx.textAlign = "center"; ctx.textBaseline = "middle";
-      ctx.fillText(label, bw2 / 2, y + bh / 2 + 1);
-    }
-
-    // Text area — monospaced feel
-    const areaX = bw2 + 16; const areaW = W - areaX - 8;
-    const fs    = Math.round(bh * 0.33);
-    this.drawScrollText(areaX, y + 2, areaW, bh - 4, 0,
-      y + bh / 2, state.newsText, `600 ${fs}px "Courier New", monospace`,
-      "#f5e08a", t, this.newsScrollStartT);
-  }
-
-  // ── 5. Sky News — sky blue + white, clean modern British broadcast ──────────
-  private drawTickerSkyNews(t: number, yBase: number) {
-    const { ctx, W, H, state } = this;
-    const bh     = Math.max(40, Math.round(H * 0.066));
-    const accent = state.newsBgColor || "#0072bc";
-    const r      = Math.round(bh * 0.30);
-    const y      = yBase > 0 ? Math.min(H - bh - 6, yBase) : H - bh - 6;
-
-    // White/light-grey main bar (Sky look: light not dark)
-    this.roundRect(0, y, W, bh, r);
-    ctx.fillStyle = "rgba(240,245,250,0.97)"; ctx.fill();
-
-    // Thin blue top accent
-    this.clipRoundRect(0, y, W, 4, r, () => {
-      ctx.fillStyle = accent; ctx.fillRect(0, y, W, 4);
-    });
-
-    // Left sky-blue rounded badge
-    const bw2 = this.newsLogoImg ? Math.round(bh * 2.0) : Math.round(bh * 2.2);
-    this.roundRect(4, y + 4, bw2, bh - 8, Math.round((bh - 8) * 0.35));
-    const bg2 = ctx.createLinearGradient(4, y, 4, y + bh);
-    bg2.addColorStop(0, accent); bg2.addColorStop(1, `${accent}dd`);
-    ctx.fillStyle = bg2; ctx.fill();
-
-    if (this.newsLogoImg) {
-      const img = this.newsLogoImg;
-      const pad = Math.round(bh * 0.14);
-      const maxH = (bh - 8) - pad * 2;
-      const sc = Math.min(maxH / img.height, (bw2 - pad * 2) / img.width);
-      const dw = Math.round(img.width * sc); const dh = Math.round(img.height * sc);
-      ctx.save(); this.roundRect(4, y + 4, bw2, bh - 8, Math.round((bh - 8) * 0.35)); ctx.clip();
-      ctx.drawImage(img, 4 + Math.round((bw2 - dw) / 2), y + 4 + Math.round(((bh - 8) - dh) / 2), dw, dh);
-      ctx.restore();
-    } else {
-      const label = (state.newsTitle || "SKY NEWS").toUpperCase();
-      ctx.fillStyle = "#fff"; ctx.font = `800 ${Math.round(bh * 0.30)}px sans-serif`;
-      ctx.textAlign = "center"; ctx.textBaseline = "middle";
-      ctx.fillText(label, 4 + bw2 / 2, y + bh / 2);
-    }
-
-    const sepX = 4 + bw2 + 8;
-    ctx.fillStyle = "rgba(0,0,0,0.12)"; ctx.fillRect(sepX, y + bh * 0.15, 1, bh * 0.70);
-
-    const areaX = sepX + 10; const areaW = W - areaX - 8;
-    const fs    = Math.round(bh * 0.32);
-    this.drawScrollText(areaX, y + 2, areaW, bh - 4, Math.max(0, r - 2),
-      y + bh / 2, state.newsText, `600 ${fs}px sans-serif`,
-      "rgba(10,10,30,0.95)", t, this.newsScrollStartT);
-  }
-
-  // ── 6. Neon Wire — dark bar, neon cyan glow border, sci-fi feel ────────────
-  private drawTickerNeonWire(t: number, yBase: number) {
-    const { ctx, W, H, state } = this;
-    const bh     = Math.max(38, Math.round(H * 0.062));
-    const accent = state.newsBgColor || "#00ffcc";
-    const r      = Math.round(bh * 0.30);
-    const y      = yBase > 0 ? Math.min(H - bh - 6, yBase) : H - bh - 6;
-
-    // Dark semi-transparent bar
-    this.roundRect(0, y, W, bh, r);
-    ctx.fillStyle = "rgba(2,10,22,0.95)"; ctx.fill();
-
-    // Neon glow border
-    this.roundRect(0, y, W, bh, r);
-    ctx.strokeStyle = accent; ctx.lineWidth = 1.5;
-    ctx.shadowColor = accent; ctx.shadowBlur = 8;
-    ctx.stroke(); ctx.shadowBlur = 0;
-
-    // Animated scan line
-    const scanPos = ((t * 0.3) % 1) * W;
-    const scanG = ctx.createLinearGradient(scanPos - 60, 0, scanPos + 60, 0);
-    scanG.addColorStop(0, "transparent");
-    scanG.addColorStop(0.5, `${accent}30`);
-    scanG.addColorStop(1, "transparent");
-    this.clipRoundRect(0, y, W, bh, r, () => {
-      ctx.fillStyle = scanG; ctx.fillRect(0, y, W, bh);
-    });
-
-    // Left neon badge
-    const bw2 = this.newsLogoImg ? Math.round(bh * 1.9) : Math.round(bh * 2.1);
-    this.roundRect(6, y + 5, bw2, bh - 10, Math.round((bh - 10) * 0.4));
-    ctx.fillStyle = `${accent}22`; ctx.fill();
-    this.roundRect(6, y + 5, bw2, bh - 10, Math.round((bh - 10) * 0.4));
-    ctx.strokeStyle = accent; ctx.lineWidth = 1;
-    ctx.shadowColor = accent; ctx.shadowBlur = 6; ctx.stroke(); ctx.shadowBlur = 0;
-
-    if (this.newsLogoImg) {
-      const img = this.newsLogoImg;
-      const pad = Math.round(bh * 0.15);
-      const maxH = (bh - 10) - pad * 2;
-      const sc = Math.min(maxH / img.height, (bw2 - pad * 2) / img.width);
-      const dw = Math.round(img.width * sc); const dh = Math.round(img.height * sc);
-      ctx.save(); this.roundRect(6, y + 5, bw2, bh - 10, Math.round((bh - 10) * 0.4)); ctx.clip();
-      ctx.drawImage(img, 6 + Math.round((bw2 - dw) / 2), y + 5 + Math.round(((bh - 10) - dh) / 2), dw, dh);
-      ctx.restore();
-    } else {
-      const label = (state.newsTitle || "◈ LIVE").toUpperCase();
-      ctx.fillStyle = accent; ctx.font = `700 ${Math.round(bh * 0.29)}px sans-serif`;
-      ctx.textAlign = "center"; ctx.textBaseline = "middle";
-      ctx.shadowColor = accent; ctx.shadowBlur = 6;
-      ctx.fillText(label, 6 + bw2 / 2, y + bh / 2);
-      ctx.shadowBlur = 0;
-    }
-
-    ctx.fillStyle = `${accent}30`; ctx.fillRect(6 + bw2 + 8, y + bh * 0.15, 1, bh * 0.70);
-
-    const areaX = 6 + bw2 + 14; const areaW = W - areaX - 10;
-    const fs    = Math.round(bh * 0.32);
-    this.drawScrollText(areaX, y + 2, areaW, bh - 4, Math.max(0, r - 2),
-      y + bh / 2, state.newsText, `600 ${fs}px sans-serif`,
-      accent, t, this.newsScrollStartT);
-  }
-
-  // ── 7. Float Glass — frosted glass, semi-transparent, elegant ──────────────
-  private drawTickerFloatGlass(t: number, yBase: number) {
-    const { ctx, W, H, state } = this;
-    const bh     = Math.max(42, Math.round(H * 0.068));
-    const accent = state.newsBgColor || "#818cf8";
-    const r      = Math.round(bh * 0.38);
-    const margin = 12;
-    const y      = yBase > 0 ? Math.min(H - bh - margin, yBase) : H - bh - margin;
-
-    // Frosted glass base
-    this.roundRect(margin, y, W - margin * 2, bh, r);
-    ctx.fillStyle = "rgba(255,255,255,0.13)"; ctx.fill();
-
-    // Glass shimmer highlight along top
-    this.clipRoundRect(margin, y, W - margin * 2, bh / 2, r, () => {
-      const shimG = ctx.createLinearGradient(0, y, 0, y + bh / 2);
-      shimG.addColorStop(0, "rgba(255,255,255,0.22)");
-      shimG.addColorStop(1, "rgba(255,255,255,0.04)");
-      ctx.fillStyle = shimG; ctx.fillRect(margin, y, W - margin * 2, bh / 2);
-    });
-
-    // Subtle border
-    this.roundRect(margin, y, W - margin * 2, bh, r);
-    ctx.strokeStyle = "rgba(255,255,255,0.28)"; ctx.lineWidth = 1; ctx.stroke();
-
-    // Left badge (translucent accent)
-    const bw2 = this.newsLogoImg ? Math.round(bh * 1.8) : Math.round(bh * 2.0);
-    const bx  = margin + 6; const by = y + 5; const bH2 = bh - 10;
-    this.roundRect(bx, by, bw2, bH2, Math.round(bH2 * 0.38));
-    ctx.fillStyle = `${accent}55`; ctx.fill();
-    this.roundRect(bx, by, bw2, bH2, Math.round(bH2 * 0.38));
-    ctx.strokeStyle = `${accent}99`; ctx.lineWidth = 1; ctx.stroke();
-
-    if (this.newsLogoImg) {
-      const img = this.newsLogoImg;
-      const pad = Math.round(bH2 * 0.15);
-      const maxH = bH2 - pad * 2;
-      const sc = Math.min(maxH / img.height, (bw2 - pad * 2) / img.width);
-      const dw = Math.round(img.width * sc); const dh = Math.round(img.height * sc);
-      ctx.save(); this.roundRect(bx, by, bw2, bH2, Math.round(bH2 * 0.38)); ctx.clip();
-      ctx.drawImage(img, bx + Math.round((bw2 - dw) / 2), by + Math.round((bH2 - dh) / 2), dw, dh);
-      ctx.restore();
-    } else {
-      const label = (state.newsTitle || "◆ LIVE").toUpperCase();
-      ctx.fillStyle = "#fff"; ctx.font = `700 ${Math.round(bH2 * 0.40)}px sans-serif`;
-      ctx.textAlign = "center"; ctx.textBaseline = "middle";
-      ctx.fillText(label, bx + bw2 / 2, by + bH2 / 2);
-    }
-
-    ctx.fillStyle = "rgba(255,255,255,0.20)";
-    ctx.fillRect(bx + bw2 + 8, y + bh * 0.18, 1, bh * 0.64);
-
-    const areaX = bx + bw2 + 14; const areaW = W - margin - areaX - 10;
-    const fs    = Math.round(bh * 0.32);
-    this.drawScrollText(areaX, y + 2, areaW, bh - 4, Math.max(0, r - 2),
-      y + bh / 2, state.newsText, `600 ${fs}px sans-serif`,
-      "rgba(255,255,255,0.96)", t, this.newsScrollStartT);
-  }
-
-  // ── 8. Sports — bold orange/red gradient, aggressive sports ticker ──────────
-  private drawTickerSports(t: number, yBase: number) {
-    const { ctx, W, H, state } = this;
-    const bh     = Math.max(44, Math.round(H * 0.070));
-    const accent = state.newsBgColor || "#ea580c";
-    const y      = yBase > 0 ? Math.min(H - bh - 4, yBase) : H - bh - 4;
-
-    // Full gradient bar — orange to dark red
-    const barG = ctx.createLinearGradient(0, y, W, y + bh);
-    barG.addColorStop(0, accent); barG.addColorStop(0.6, "#7f1d1d"); barG.addColorStop(1, "#1c1c1c");
-    ctx.fillStyle = barG; ctx.fillRect(0, y, W, bh);
-
-    // Dark band at bottom
-    ctx.fillStyle = "rgba(0,0,0,0.30)"; ctx.fillRect(0, y + bh - 6, W, 6);
-
-    // Diagonal slash badge
-    const bw2 = this.newsLogoImg ? Math.round(bh * 2.0) : Math.round(bh * 2.3);
-    ctx.fillStyle = "rgba(0,0,0,0.45)"; ctx.fillRect(0, y, bw2, bh);
-
-    // Slash accent on right of badge
+    // Scarlet gradient badge
+    const bw = this.newsLogoImg ? Math.round(bh * 2.0) : Math.round(bh * 2.4);
+    const bg = ctx.createLinearGradient(0, yTop, 0, yTop + bh);
+    bg.addColorStop(0, accent); bg.addColorStop(1, "#880000");
+    ctx.fillStyle = bg; ctx.fillRect(0, yTop + 3, bw, bh - 3);
+    // CNN-signature arrow right edge
     ctx.fillStyle = accent;
     ctx.beginPath();
-    ctx.moveTo(bw2 - 8, y); ctx.lineTo(bw2 + 14, y); ctx.lineTo(bw2 + 6, y + bh);
-    ctx.lineTo(bw2 - 16, y + bh); ctx.fill();
+    ctx.moveTo(bw, yTop + 3); ctx.lineTo(bw + 18, yTop + bh / 2); ctx.lineTo(bw, yTop + bh);
+    ctx.fill();
 
     if (this.newsLogoImg) {
-      const img = this.newsLogoImg;
-      const pad = Math.round(bh * 0.12);
-      const maxH = bh - pad * 2;
-      const sc = Math.min(maxH / img.height, (bw2 - pad * 2) / img.width);
-      const dw = Math.round(img.width * sc); const dh = Math.round(img.height * sc);
-      ctx.save(); ctx.beginPath(); ctx.rect(0, y, bw2, bh); ctx.clip();
-      ctx.drawImage(img, Math.round((bw2 - dw) / 2), y + Math.round((bh - dh) / 2), dw, dh);
+      const img = this.newsLogoImg; const pad = Math.round(bh * 0.13);
+      const sc  = Math.min((bh - pad * 2) / img.height, (bw - pad * 2) / img.width);
+      const dw  = Math.round(img.width * sc); const dh = Math.round(img.height * sc);
+      ctx.save(); ctx.beginPath(); ctx.rect(0, yTop, bw, bh); ctx.clip();
+      ctx.drawImage(img, Math.round((bw - dw) / 2), yTop + Math.round((bh - dh) / 2), dw, dh);
       ctx.restore();
     } else {
-      const label = (state.newsTitle || "⚡ SPORTS").toUpperCase();
-      ctx.fillStyle = "#fff"; ctx.font = `900 ${Math.round(bh * 0.32)}px sans-serif`;
+      ctx.fillStyle = "#fff"; ctx.font = `900 ${Math.round(bh * 0.40)}px sans-serif`;
       ctx.textAlign = "center"; ctx.textBaseline = "middle";
-      ctx.shadowColor = "rgba(0,0,0,0.6)"; ctx.shadowBlur = 4;
-      ctx.fillText(label, bw2 / 2, y + bh / 2);
+      ctx.shadowColor = "rgba(0,0,0,0.4)"; ctx.shadowBlur = 4;
+      ctx.fillText((state.newsTitle || "CNN").toUpperCase(), bw / 2, yTop + bh / 2 + 1);
       ctx.shadowBlur = 0;
     }
 
-    const areaX = bw2 + 22; const areaW = W - areaX - 8;
-    const fs    = Math.round(bh * 0.35);
-    this.drawScrollText(areaX, y + 2, areaW, bh - 4, 0,
-      y + bh / 2, state.newsText, `800 ${fs}px sans-serif`,
+    // Headline
+    const hx2 = bw + 24; const hmaxW2 = W - hx2 - 16;
+    ctx.font = `700 ${Math.round(bh * 0.36)}px sans-serif`;
+    let hl2 = state.newsText;
+    while (ctx.measureText(hl2).width > hmaxW2 && hl2.length > 5) hl2 = hl2.slice(0, -4) + "…";
+    ctx.fillStyle = "rgba(252,252,252,0.97)"; ctx.textAlign = "left"; ctx.textBaseline = "middle";
+    ctx.fillText(hl2, hx2, yTop + bh / 2 + 1);
+
+    // ── Ticker bar ───────────────────────────────────────────────────────────
+    ctx.fillStyle = "rgba(12,12,16,0.98)"; ctx.fillRect(0, yTick, W, th);
+    ctx.fillStyle = accent; ctx.fillRect(0, yTick + th - 2, W, 2);
+
+    // Pulsing dot
+    const pulse2 = 0.5 + 0.5 * Math.sin(t * 3.8);
+    ctx.fillStyle = accent; ctx.shadowColor = accent; ctx.shadowBlur = 10 * pulse2;
+    ctx.beginPath(); ctx.arc(13, yTick + th / 2, Math.round(th * 0.14), 0, Math.PI * 2); ctx.fill();
+    ctx.shadowBlur = 0; ctx.shadowColor = "transparent";
+
+    ctx.fillStyle = "rgba(255,255,255,0.55)"; ctx.font = `800 ${Math.round(th * 0.33)}px sans-serif`;
+    ctx.textAlign = "left"; ctx.textBaseline = "middle";
+    ctx.fillText("BREAKING NEWS", 28, yTick + th / 2);
+    const lx2 = 28 + ctx.measureText("BREAKING NEWS").width + 14;
+    ctx.fillStyle = "rgba(255,255,255,0.12)"; ctx.fillRect(lx2, yTick + th * 0.12, 1, th * 0.76);
+    this.drawScrollText(lx2 + 10, yTick + 2, W - lx2 - 16, th - 4, 0,
+      yTick + th / 2, state.newsText, `700 ${Math.round(th * 0.37)}px sans-serif`,
       "rgba(255,255,255,0.97)", t, this.newsScrollStartT);
   }
 
-  // ── 9. Cinematic — near-black, gold hairline, letter-spaced elegance ────────
-  private drawTickerCinematic(t: number, yBase: number) {
+  // ── 3. BBC — navy two-tier, red pill badge, authoritative British look ───────
+  private drawTickerBBC(t: number, yBase: number) {
     const { ctx, W, H, state } = this;
-    const bh     = Math.max(38, Math.round(H * 0.062));
-    const accent = state.newsBgColor || "#c9a84c";
-    const y      = yBase > 0 ? Math.min(H - bh - 4, yBase) : H - bh - 4;
+    const accent = state.newsBgColor || "#bb1919";
+    const r  = Math.round(H * 0.010);
+    const bh = Math.max(38, Math.round(H * 0.058));
+    const th = Math.max(32, Math.round(H * 0.048));
+    const yTop  = yBase > 0 ? Math.min(H - bh - th - 4, yBase) : H - bh - th - 4;
+    const yTick = yTop + bh;
 
-    // Matte near-black bar
-    ctx.fillStyle = "rgba(8,6,4,0.97)"; ctx.fillRect(0, y, W, bh);
+    // ── Headline bar (deep navy) ──────────────────────────────────────────────
+    this.roundRect(0, yTop, W, bh, r); ctx.fillStyle = "rgba(5,8,26,0.99)"; ctx.fill();
+    // Thin left red stripe
+    ctx.fillStyle = accent; ctx.fillRect(0, yTop, 4, bh);
 
-    // Gold hairline top and bottom
-    ctx.fillStyle = accent; ctx.fillRect(0, y, W, 1);
-    ctx.fillStyle = accent; ctx.fillRect(0, y + bh - 1, W, 1);
+    // BBC pill badge (inset, compact)
+    const bx3 = 10; const by3 = yTop + Math.round(bh * 0.12); const bH3 = Math.round(bh * 0.76);
+    const bw3 = this.newsLogoImg ? Math.round(bH3 * 2.4) : Math.round(bH3 * 2.1);
+    const pillR3 = Math.round(bH3 * 0.28);
+    this.roundRect(bx3, by3, bw3, bH3, pillR3);
+    ctx.fillStyle = accent; ctx.fill();
 
-    // Left logo/label area — minimal
-    const bw2 = this.newsLogoImg ? Math.round(bh * 1.9) : Math.round(bh * 2.0);
     if (this.newsLogoImg) {
-      const img = this.newsLogoImg;
-      const pad = Math.round(bh * 0.16);
-      const maxH = bh - pad * 2;
-      const sc = Math.min(maxH / img.height, (bw2 - pad * 2) / img.width);
-      const dw = Math.round(img.width * sc); const dh = Math.round(img.height * sc);
-      ctx.save(); ctx.beginPath(); ctx.rect(0, y, bw2, bh); ctx.clip();
-      ctx.drawImage(img, Math.round((bw2 - dw) / 2), y + Math.round((bh - dh) / 2), dw, dh);
+      const img = this.newsLogoImg; const pad = Math.round(bH3 * 0.13);
+      const sc  = Math.min((bH3 - pad * 2) / img.height, (bw3 - pad * 2) / img.width);
+      const dw  = Math.round(img.width * sc); const dh = Math.round(img.height * sc);
+      ctx.save(); this.roundRect(bx3, by3, bw3, bH3, pillR3); ctx.clip();
+      ctx.drawImage(img, bx3 + Math.round((bw3 - dw) / 2), by3 + Math.round((bH3 - dh) / 2), dw, dh);
       ctx.restore();
     } else {
-      const label = (state.newsTitle || "LIVE").toUpperCase();
-      ctx.fillStyle = accent; ctx.font = `300 ${Math.round(bh * 0.28)}px sans-serif`;
+      ctx.fillStyle = "#fff"; ctx.font = `900 ${Math.round(bH3 * 0.44)}px sans-serif`;
       ctx.textAlign = "center"; ctx.textBaseline = "middle";
-      // Draw label with manual letter spacing for cinematic look
-      const chars2 = label.split("");
-      const totalLW = chars2.reduce((acc, c) => { ctx.font = `300 ${Math.round(bh * 0.28)}px sans-serif`; return acc + ctx.measureText(c).width + 3; }, 0);
-      let lx = bw2 / 2 - totalLW / 2;
-      chars2.forEach((c) => {
-        ctx.font = `300 ${Math.round(bh * 0.28)}px sans-serif`;
-        ctx.fillText(c, lx, y + bh / 2);
-        lx += ctx.measureText(c).width + 3;
-      });
+      ctx.fillText((state.newsTitle || "BBC NEWS").toUpperCase(), bx3 + bw3 / 2, by3 + bH3 / 2);
     }
 
-    // Gold hairline separator
-    ctx.fillStyle = accent; ctx.fillRect(bw2, y + bh * 0.20, 1, bh * 0.60);
+    // Headline
+    const hx3 = bx3 + bw3 + 16; const hmaxW3 = W - hx3 - 12;
+    ctx.font = `600 ${Math.round(bh * 0.35)}px sans-serif`;
+    let hl3 = state.newsText;
+    while (ctx.measureText(hl3).width > hmaxW3 && hl3.length > 5) hl3 = hl3.slice(0, -4) + "…";
+    ctx.fillStyle = "rgba(228,230,242,0.97)"; ctx.textAlign = "left"; ctx.textBaseline = "middle";
+    ctx.fillText(hl3, hx3, yTop + bh / 2);
 
-    const areaX = bw2 + 16; const areaW = W - areaX - 16;
-    const fs    = Math.round(bh * 0.30);
-    this.drawScrollText(areaX, y + 2, areaW, bh - 4, 0,
-      y + bh / 2, state.newsText, `300 ${fs}px sans-serif`,
-      "#d4bfa0", t, this.newsScrollStartT);
+    // Animated red→transparent separator
+    const sepG3 = ctx.createLinearGradient(0, 0, W, 0);
+    sepG3.addColorStop(0, accent); sepG3.addColorStop(0.6, "#ff3333"); sepG3.addColorStop(1, "transparent");
+    ctx.fillStyle = sepG3; ctx.fillRect(0, yTop + bh - 2, W, 2);
+
+    // ── Ticker bar ───────────────────────────────────────────────────────────
+    this.roundRect(0, yTick, W, th, r); ctx.fillStyle = "rgba(4,6,22,0.98)"; ctx.fill();
+
+    const pulse3 = 0.5 + 0.5 * Math.sin(t * 4.2);
+    ctx.fillStyle = accent; ctx.shadowColor = accent; ctx.shadowBlur = 10 * pulse3;
+    ctx.beginPath(); ctx.arc(13, yTick + th / 2, Math.round(th * 0.14), 0, Math.PI * 2); ctx.fill();
+    ctx.shadowBlur = 0; ctx.shadowColor = "transparent";
+
+    ctx.fillStyle = "rgba(200,205,222,0.55)"; ctx.font = `700 ${Math.round(th * 0.31)}px sans-serif`;
+    ctx.textAlign = "left"; ctx.textBaseline = "middle";
+    ctx.fillText("LATEST", 27, yTick + th / 2);
+    const lx3 = 27 + ctx.measureText("LATEST").width + 12;
+    ctx.fillStyle = "rgba(255,255,255,0.11)"; ctx.fillRect(lx3, yTick + th * 0.14, 1, th * 0.72);
+    this.drawScrollText(lx3 + 10, yTick + 2, W - lx3 - 16, th - 4, 0,
+      yTick + th / 2, state.newsText, `600 ${Math.round(th * 0.35)}px sans-serif`,
+      "rgba(226,230,240,0.97)", t, this.newsScrollStartT);
   }
 
-  // ── 10. Gold Luxury — black bar, gradient gold badge, premium feel ──────────
-  private drawTickerGoldLuxury(t: number, yBase: number) {
+  // ── 4. Bloomberg — two-tier matte black, gold angled badge, terminal ticker ──
+  private drawTickerBloomberg(t: number, yBase: number) {
     const { ctx, W, H, state } = this;
-    const bh     = Math.max(40, Math.round(H * 0.065));
-    const r      = Math.round(bh * 0.26);
-    const accent = state.newsBgColor || "#d4a017";
-    const y      = yBase > 0 ? Math.min(H - bh - 6, yBase) : H - bh - 6;
+    const accent = state.newsBgColor || "#f59e0b";
+    const bh  = Math.max(36, Math.round(H * 0.056));
+    const th  = Math.max(30, Math.round(H * 0.047));
+    const yTop  = yBase > 0 ? Math.min(H - bh - th - 4, yBase) : H - bh - th - 4;
+    const yTick = yTop + bh;
 
-    // Rich black bar
-    this.roundRect(0, y, W, bh, r);
-    const barG = ctx.createLinearGradient(0, y, 0, y + bh);
-    barG.addColorStop(0, "rgba(16,12,4,0.98)"); barG.addColorStop(1, "rgba(8,6,2,0.98)");
-    ctx.fillStyle = barG; ctx.fill();
+    // ── Headline bar ─────────────────────────────────────────────────────────
+    ctx.fillStyle = "rgba(6,6,8,0.99)"; ctx.fillRect(0, yTop, W, bh);
 
-    // Gold gradient border
-    this.roundRect(0, y, W, bh, r);
-    const borderG2 = ctx.createLinearGradient(0, y, W, y + bh);
-    borderG2.addColorStop(0, `${accent}88`); borderG2.addColorStop(0.5, "#fff5cc88");
-    borderG2.addColorStop(1, `${accent}44`);
-    ctx.strokeStyle = borderG2; ctx.lineWidth = 1.5; ctx.stroke();
+    // Gold hairline top — tapers at edges
+    const lineG4 = ctx.createLinearGradient(0, 0, W, 0);
+    lineG4.addColorStop(0, "transparent"); lineG4.addColorStop(0.08, accent);
+    lineG4.addColorStop(0.92, accent); lineG4.addColorStop(1, "transparent");
+    ctx.fillStyle = lineG4; ctx.fillRect(0, yTop, W, 2);
 
-    // Gold badge with inner shine
-    const bw2 = this.newsLogoImg ? Math.round(bh * 2.0) : Math.round(bh * 2.2);
-    this.roundRect(0, y, bw2, bh, r);
-    const goldG = ctx.createLinearGradient(0, y, bw2, y + bh);
-    goldG.addColorStop(0, "#fde68a"); goldG.addColorStop(0.3, accent);
-    goldG.addColorStop(0.7, "#b8860b"); goldG.addColorStop(1, accent);
-    ctx.fillStyle = goldG; ctx.fill();
+    // Gold angled badge
+    const bw4 = this.newsLogoImg ? Math.round(bh * 2.1) : Math.round(bh * 2.6);
+    const goldG4 = ctx.createLinearGradient(0, yTop, bw4, yTop + bh);
+    goldG4.addColorStop(0, "#fde68a"); goldG4.addColorStop(0.4, accent); goldG4.addColorStop(1, "#92400e");
+    ctx.fillStyle = goldG4; ctx.fillRect(0, yTop + 2, bw4, bh - 2);
+    ctx.beginPath(); // angled right clip
+    ctx.moveTo(bw4, yTop + 2); ctx.lineTo(bw4 + 16, yTop + 2); ctx.lineTo(bw4, yTop + bh); ctx.fill();
 
     if (this.newsLogoImg) {
-      const img = this.newsLogoImg;
-      const pad = Math.round(bh * 0.14);
-      const maxH = bh - pad * 2;
-      const sc = Math.min(maxH / img.height, (bw2 - pad * 2) / img.width);
-      const dw = Math.round(img.width * sc); const dh = Math.round(img.height * sc);
-      ctx.save(); this.roundRect(0, y, bw2, bh, r); ctx.clip();
-      ctx.drawImage(img, Math.round((bw2 - dw) / 2), y + Math.round((bh - dh) / 2), dw, dh);
+      const img = this.newsLogoImg; const pad = Math.round(bh * 0.11);
+      const sc  = Math.min((bh - pad * 2) / img.height, (bw4 - pad * 2) / img.width);
+      const dw  = Math.round(img.width * sc); const dh = Math.round(img.height * sc);
+      ctx.save(); ctx.beginPath(); ctx.rect(0, yTop, bw4, bh); ctx.clip();
+      ctx.drawImage(img, Math.round((bw4 - dw) / 2), yTop + Math.round((bh - dh) / 2), dw, dh);
       ctx.restore();
     } else {
-      const label = (state.newsTitle || "★ LIVE").toUpperCase();
-      ctx.fillStyle = "#0a0600"; ctx.font = `900 ${Math.round(bh * 0.30)}px sans-serif`;
+      ctx.fillStyle = "#0a0600"; ctx.font = `900 ${Math.round(bh * 0.32)}px sans-serif`;
       ctx.textAlign = "center"; ctx.textBaseline = "middle";
-      ctx.fillText(label, bw2 / 2, y + bh / 2 + 1);
+      ctx.fillText((state.newsTitle || "BLOOMBERG").toUpperCase(), bw4 / 2, yTop + bh / 2 + 1);
     }
 
-    ctx.fillStyle = `${accent}55`; ctx.fillRect(bw2 + 1, y + bh * 0.15, 1, bh * 0.70);
+    // Category tag chip + headline
+    const catX = bw4 + 22;
+    ctx.fillStyle = `${accent}28`; ctx.fillRect(catX, yTop + Math.round(bh * 0.20), Math.round(bh * 2.6), Math.round(bh * 0.60));
+    ctx.fillStyle = accent; ctx.font = `700 ${Math.round(bh * 0.28)}px "Courier New", monospace`;
+    ctx.textAlign = "left"; ctx.textBaseline = "middle";
+    ctx.fillText("MARKETS", catX + 7, yTop + bh / 2);
+    const catEnd = catX + Math.round(bh * 2.6) + 16;
 
-    const areaX = bw2 + 14; const areaW = W - areaX - 10;
-    const fs    = Math.round(bh * 0.32);
-    this.drawScrollText(areaX, y + 2, areaW, bh - 4, Math.max(0, r - 2),
-      y + bh / 2, state.newsText, `600 ${fs}px sans-serif`,
+    ctx.font = `500 ${Math.round(bh * 0.35)}px "Courier New", monospace`;
+    let hl4 = state.newsText;
+    while (ctx.measureText(hl4).width > W - catEnd - 14 && hl4.length > 5) hl4 = hl4.slice(0, -4) + "…";
+    ctx.fillStyle = "#e8d87a"; ctx.textAlign = "left"; ctx.textBaseline = "middle";
+    ctx.fillText(hl4, catEnd, yTop + bh / 2);
+
+    ctx.fillStyle = `${accent}40`; ctx.fillRect(0, yTop + bh - 1, W, 1);
+
+    // ── Ticker bar ───────────────────────────────────────────────────────────
+    ctx.fillStyle = "rgba(4,4,6,0.99)"; ctx.fillRect(0, yTick, W, th);
+
+    const pulse4 = 0.4 + 0.6 * Math.abs(Math.sin(t * 3.5));
+    ctx.fillStyle = accent; ctx.shadowColor = accent; ctx.shadowBlur = 14 * pulse4;
+    ctx.beginPath(); ctx.arc(13, yTick + th / 2, Math.round(th * 0.14), 0, Math.PI * 2); ctx.fill();
+    ctx.shadowBlur = 0; ctx.shadowColor = "transparent";
+
+    ctx.fillStyle = `${accent}bb`; ctx.font = `700 ${Math.round(th * 0.31)}px "Courier New", monospace`;
+    ctx.textAlign = "left"; ctx.textBaseline = "middle";
+    ctx.fillText("LIVE DATA", 28, yTick + th / 2);
+    const lx4 = 28 + ctx.measureText("LIVE DATA").width + 14;
+    ctx.fillStyle = `${accent}30`; ctx.fillRect(lx4, yTick + th * 0.12, 1, th * 0.76);
+    this.drawScrollText(lx4 + 10, yTick + 2, W - lx4 - 16, th - 4, 0,
+      yTick + th / 2, state.newsText, `500 ${Math.round(th * 0.35)}px "Courier New", monospace`,
       "#f5e08a", t, this.newsScrollStartT);
   }
 
-  // ── 11. Minimal — ultra-thin, barely-there, clean ──────────────────────────
-  private drawTickerMinimal(t: number, yBase: number) {
+  // ── 5. Sky News — two-tier light/white top, sky-blue badge, clean modern ─────
+  private drawTickerSkyNews(t: number, yBase: number) {
     const { ctx, W, H, state } = this;
-    const bh     = Math.max(28, Math.round(H * 0.044));
-    const accent = state.newsBgColor || "#94a3b8";
-    const y      = yBase > 0 ? Math.min(H - bh - 4, yBase) : H - bh - 4;
+    const accent = state.newsBgColor || "#0072bc";
+    const r  = Math.round(H * 0.014);
+    const bh = Math.max(38, Math.round(H * 0.058));
+    const th = Math.max(32, Math.round(H * 0.048));
+    const yTop  = yBase > 0 ? Math.min(H - bh - th - 4, yBase) : H - bh - th - 4;
+    const yTick = yTop + bh;
 
-    // Near-invisible bar
-    ctx.fillStyle = "rgba(0,0,0,0.62)"; ctx.fillRect(0, y, W, bh);
+    // ── Headline bar (light/white — Sky look) ─────────────────────────────────
+    this.roundRect(0, yTop, W, bh, r);
+    ctx.fillStyle = "rgba(244,247,252,0.98)"; ctx.fill();
+    ctx.fillStyle = accent; ctx.fillRect(0, yTop, W, 4); // blue top stripe
 
-    // 1px accent top line
-    ctx.fillStyle = accent; ctx.fillRect(0, y, W, 1);
+    // Blue rounded badge (inset)
+    const bx5 = 4; const by5 = yTop + 4; const bh5 = bh - 8;
+    const bw5 = this.newsLogoImg ? Math.round(bh5 * 2.4) : Math.round(bh5 * 2.6);
+    this.roundRect(bx5, by5, bw5, bh5, Math.round(bh5 * 0.28));
+    const blueG5 = ctx.createLinearGradient(bx5, by5, bx5, by5 + bh5);
+    blueG5.addColorStop(0, accent); blueG5.addColorStop(1, "#004a90");
+    ctx.fillStyle = blueG5; ctx.fill();
 
-    // Tiny label on left
-    const bw2 = this.newsLogoImg ? Math.round(bh * 1.8) : Math.round(bh * 1.6);
     if (this.newsLogoImg) {
-      const img = this.newsLogoImg;
-      const pad = Math.round(bh * 0.16);
-      const maxH = bh - pad * 2;
-      const sc = Math.min(maxH / img.height, (bw2 - pad * 2) / img.width);
-      const dw = Math.round(img.width * sc); const dh = Math.round(img.height * sc);
-      ctx.save(); ctx.beginPath(); ctx.rect(0, y, bw2, bh); ctx.clip();
-      ctx.drawImage(img, Math.round((bw2 - dw) / 2), y + Math.round((bh - dh) / 2), dw, dh);
+      const img = this.newsLogoImg; const pad = Math.round(bh5 * 0.13);
+      const sc  = Math.min((bh5 - pad * 2) / img.height, (bw5 - pad * 2) / img.width);
+      const dw  = Math.round(img.width * sc); const dh = Math.round(img.height * sc);
+      ctx.save(); this.roundRect(bx5, by5, bw5, bh5, Math.round(bh5 * 0.28)); ctx.clip();
+      ctx.drawImage(img, bx5 + Math.round((bw5 - dw) / 2), by5 + Math.round((bh5 - dh) / 2), dw, dh);
       ctx.restore();
     } else {
-      const label = (state.newsTitle || "LIVE").toUpperCase();
-      ctx.fillStyle = accent; ctx.font = `600 ${Math.round(bh * 0.35)}px sans-serif`;
+      ctx.fillStyle = "#fff"; ctx.font = `800 ${Math.round(bh5 * 0.40)}px sans-serif`;
       ctx.textAlign = "center"; ctx.textBaseline = "middle";
-      ctx.fillText(label, bw2 / 2, y + bh / 2);
+      ctx.fillText((state.newsTitle || "SKY NEWS").toUpperCase(), bx5 + bw5 / 2, by5 + bh5 / 2);
     }
 
-    ctx.fillStyle = "rgba(255,255,255,0.15)"; ctx.fillRect(bw2 + 1, y + bh * 0.20, 1, bh * 0.60);
+    // Headline (dark on white)
+    const hx5 = bx5 + bw5 + 16; const hmaxW5 = W - hx5 - 12;
+    ctx.font = `600 ${Math.round(bh * 0.35)}px sans-serif`;
+    let hl5 = state.newsText;
+    while (ctx.measureText(hl5).width > hmaxW5 && hl5.length > 5) hl5 = hl5.slice(0, -4) + "…";
+    ctx.fillStyle = "rgba(8,12,36,0.93)"; ctx.textAlign = "left"; ctx.textBaseline = "middle";
+    ctx.fillText(hl5, hx5, yTop + bh / 2);
 
-    const areaX = bw2 + 10; const areaW = W - areaX - 6;
-    const fs    = Math.round(bh * 0.38);
-    this.drawScrollText(areaX, y, areaW, bh, 0,
-      y + bh / 2, state.newsText, `400 ${fs}px sans-serif`,
-      "rgba(220,220,220,0.82)", t, this.newsScrollStartT);
+    ctx.fillStyle = accent; ctx.fillRect(0, yTop + bh - 3, W, 3);
+
+    // ── Ticker bar (light too) ────────────────────────────────────────────────
+    this.roundRect(0, yTick, W, th, r);
+    ctx.fillStyle = "rgba(228,236,250,0.97)"; ctx.fill();
+
+    const pulse5 = 0.5 + 0.5 * Math.sin(t * 4.0);
+    ctx.fillStyle = accent; ctx.shadowColor = accent; ctx.shadowBlur = 7 * pulse5;
+    ctx.beginPath(); ctx.arc(13, yTick + th / 2, Math.round(th * 0.14), 0, Math.PI * 2); ctx.fill();
+    ctx.shadowBlur = 0; ctx.shadowColor = "transparent";
+
+    ctx.fillStyle = `${accent}cc`; ctx.font = `700 ${Math.round(th * 0.31)}px sans-serif`;
+    ctx.textAlign = "left"; ctx.textBaseline = "middle";
+    ctx.fillText("LATEST", 27, yTick + th / 2);
+    const lx5 = 27 + ctx.measureText("LATEST").width + 12;
+    ctx.fillStyle = `${accent}40`; ctx.fillRect(lx5, yTick + th * 0.15, 1, th * 0.70);
+    this.drawScrollText(lx5 + 10, yTick + 2, W - lx5 - 16, th - 4, 0,
+      yTick + th / 2, state.newsText, `600 ${Math.round(th * 0.35)}px sans-serif`,
+      "rgba(8,12,36,0.95)", t, this.newsScrollStartT);
+  }
+
+  // ── 6. Neon Wire — two-tier cyberpunk, animated scanline, glowing border ─────
+  private drawTickerNeonWire(t: number, yBase: number) {
+    const { ctx, W, H, state } = this;
+    const accent = state.newsBgColor || "#00ffcc";
+    const r      = Math.round(H * 0.014);
+    const bh     = Math.max(38, Math.round(H * 0.058));
+    const th     = Math.max(32, Math.round(H * 0.050));
+    const totalH = bh + th;
+    const yTop   = yBase > 0 ? Math.min(H - totalH - 6, yBase) : H - totalH - 6;
+    const yTick  = yTop + bh;
+
+    // ── Dark base for both tiers ──────────────────────────────────────────────
+    ctx.fillStyle = "rgba(2,8,18,0.96)";
+    this.fillRoundRect(0, yTop, W, totalH, r);
+
+    // Animated scanline
+    const scanX = ((t * 0.24) % 1.3) * W - 0.15 * W;
+    const scanG6 = ctx.createLinearGradient(scanX - 90, 0, scanX + 90, 0);
+    scanG6.addColorStop(0, "transparent"); scanG6.addColorStop(0.5, `${accent}18`); scanG6.addColorStop(1, "transparent");
+    this.clipRoundRect(0, yTop, W, totalH, r, () => { ctx.fillStyle = scanG6; ctx.fillRect(0, yTop, W, totalH); });
+
+    // Glowing outer border
+    ctx.shadowColor = accent; ctx.shadowBlur = 16;
+    ctx.strokeStyle = accent; ctx.lineWidth = 1.5;
+    this.roundRect(0, yTop, W, totalH, r); ctx.stroke();
+    ctx.shadowBlur = 0; ctx.shadowColor = "transparent";
+
+    // Thin separator
+    ctx.fillStyle = `${accent}40`; ctx.fillRect(0, yTop + bh, W, 1);
+
+    // ── Headline tier: glowing badge + text ──────────────────────────────────
+    const bw6 = this.newsLogoImg ? Math.round(bh * 2.0) : Math.round(bh * 2.2);
+    const bx6 = 6; const by6 = yTop + 5; const bH6 = bh - 10;
+    ctx.fillStyle = `${accent}1c`;
+    this.fillRoundRect(bx6, by6, bw6, bH6, Math.round(bH6 * 0.38));
+    ctx.shadowColor = accent; ctx.shadowBlur = 8;
+    ctx.strokeStyle = accent; ctx.lineWidth = 1;
+    this.roundRect(bx6, by6, bw6, bH6, Math.round(bH6 * 0.38)); ctx.stroke();
+    ctx.shadowBlur = 0; ctx.shadowColor = "transparent";
+
+    if (this.newsLogoImg) {
+      const img = this.newsLogoImg; const pad = Math.round(bH6 * 0.14);
+      const sc  = Math.min((bH6 - pad * 2) / img.height, (bw6 - pad * 2) / img.width);
+      const dw  = Math.round(img.width * sc); const dh = Math.round(img.height * sc);
+      ctx.save(); this.fillRoundRect(bx6, by6, bw6, bH6, Math.round(bH6 * 0.38)); ctx.clip();
+      ctx.drawImage(img, bx6 + Math.round((bw6 - dw) / 2), by6 + Math.round((bH6 - dh) / 2), dw, dh);
+      ctx.restore();
+    } else {
+      ctx.fillStyle = accent; ctx.font = `700 ${Math.round(bH6 * 0.35)}px sans-serif`;
+      ctx.textAlign = "center"; ctx.textBaseline = "middle";
+      ctx.shadowColor = accent; ctx.shadowBlur = 10;
+      ctx.fillText((state.newsTitle || "◈ SIGNAL").toUpperCase(), bx6 + bw6 / 2, by6 + bH6 / 2);
+      ctx.shadowBlur = 0; ctx.shadowColor = "transparent";
+    }
+
+    // Headline (glow text)
+    const hx6 = bx6 + bw6 + 16; const hmaxW6 = W - hx6 - 14;
+    ctx.font = `500 ${Math.round(bh * 0.33)}px sans-serif`;
+    let hl6 = state.newsText;
+    while (ctx.measureText(hl6).width > hmaxW6 && hl6.length > 5) hl6 = hl6.slice(0, -4) + "…";
+    ctx.fillStyle = `${accent}cc`; ctx.shadowColor = accent; ctx.shadowBlur = 5;
+    ctx.textAlign = "left"; ctx.textBaseline = "middle";
+    ctx.fillText(hl6, hx6, yTop + bh / 2);
+    ctx.shadowBlur = 0; ctx.shadowColor = "transparent";
+
+    // ── Ticker tier ───────────────────────────────────────────────────────────
+    const pulse6 = 0.4 + 0.6 * Math.abs(Math.sin(t * 5.0));
+    ctx.fillStyle = accent; ctx.shadowColor = accent; ctx.shadowBlur = 12 * pulse6;
+    ctx.beginPath(); ctx.arc(13, yTick + th / 2, Math.round(th * 0.15), 0, Math.PI * 2); ctx.fill();
+    ctx.shadowBlur = 0; ctx.shadowColor = "transparent";
+
+    ctx.fillStyle = `${accent}88`; ctx.font = `600 ${Math.round(th * 0.30)}px sans-serif`;
+    ctx.textAlign = "left"; ctx.textBaseline = "middle";
+    ctx.fillText("FEED", 28, yTick + th / 2);
+    const lx6 = 28 + ctx.measureText("FEED").width + 12;
+    ctx.fillStyle = `${accent}33`; ctx.fillRect(lx6, yTick + th * 0.14, 1, th * 0.72);
+    ctx.shadowColor = accent; ctx.shadowBlur = 3;
+    this.drawScrollText(lx6 + 10, yTick + 2, W - lx6 - 16, th - 4, 0,
+      yTick + th / 2, state.newsText, `500 ${Math.round(th * 0.35)}px sans-serif`,
+      accent, t, this.newsScrollStartT);
+    ctx.shadowBlur = 0; ctx.shadowColor = "transparent";
+  }
+
+  // ── 7. Float Glass — two-tier frosted, shimmer wave, elegant white text ──────
+  private drawTickerFloatGlass(t: number, yBase: number) {
+    const { ctx, W, H, state } = this;
+    const accent = state.newsBgColor || "#818cf8";
+    const r      = Math.round(H * 0.020);
+    const margin = 10;
+    const bh     = Math.max(40, Math.round(H * 0.060));
+    const th     = Math.max(32, Math.round(H * 0.048));
+    const totalH = bh + th;
+    const yTop   = yBase > 0 ? Math.min(H - totalH - margin, yBase) : H - totalH - margin;
+    const yTick  = yTop + bh;
+    const cw     = W - margin * 2;
+
+    // ── Full glass container ──────────────────────────────────────────────────
+    ctx.fillStyle = "rgba(255,255,255,0.12)";
+    this.fillRoundRect(margin, yTop, cw, totalH, r);
+
+    // Top shimmer highlight
+    this.clipRoundRect(margin, yTop, cw, Math.round(totalH * 0.38), r, () => {
+      const shimG7 = ctx.createLinearGradient(0, yTop, 0, yTop + totalH * 0.38);
+      shimG7.addColorStop(0, "rgba(255,255,255,0.22)");
+      shimG7.addColorStop(1, "rgba(255,255,255,0.03)");
+      ctx.fillStyle = shimG7; ctx.fillRect(margin, yTop, cw, totalH * 0.38);
+    });
+
+    // Animated shimmer wave
+    const shimX7 = ((t * 0.14) % 1.5) * W - 0.25 * W;
+    const waveG7 = ctx.createLinearGradient(shimX7 - 110, 0, shimX7 + 110, 0);
+    waveG7.addColorStop(0, "transparent"); waveG7.addColorStop(0.5, "rgba(255,255,255,0.08)"); waveG7.addColorStop(1, "transparent");
+    this.clipRoundRect(margin, yTop, cw, totalH, r, () => { ctx.fillStyle = waveG7; ctx.fillRect(margin, yTop, cw, totalH); });
+
+    // Glass border
+    this.roundRect(margin, yTop, cw, totalH, r);
+    ctx.strokeStyle = "rgba(255,255,255,0.30)"; ctx.lineWidth = 1.2; ctx.stroke();
+
+    // Tier separator
+    ctx.fillStyle = "rgba(255,255,255,0.18)"; ctx.fillRect(margin, yTop + bh, cw, 1);
+
+    // ── Headline tier ─────────────────────────────────────────────────────────
+    const bx7 = margin + 6; const by7 = yTop + 5; const bH7 = bh - 10;
+    const bw7 = this.newsLogoImg ? Math.round(bH7 * 2.1) : Math.round(bH7 * 2.3);
+    ctx.fillStyle = `${accent}44`;
+    this.fillRoundRect(bx7, by7, bw7, bH7, Math.round(bH7 * 0.36));
+    this.roundRect(bx7, by7, bw7, bH7, Math.round(bH7 * 0.36));
+    ctx.strokeStyle = `${accent}88`; ctx.lineWidth = 1; ctx.stroke();
+
+    if (this.newsLogoImg) {
+      const img = this.newsLogoImg; const pad = Math.round(bH7 * 0.13);
+      const sc  = Math.min((bH7 - pad * 2) / img.height, (bw7 - pad * 2) / img.width);
+      const dw  = Math.round(img.width * sc); const dh = Math.round(img.height * sc);
+      ctx.save(); this.fillRoundRect(bx7, by7, bw7, bH7, Math.round(bH7 * 0.36)); ctx.clip();
+      ctx.drawImage(img, bx7 + Math.round((bw7 - dw) / 2), by7 + Math.round((bH7 - dh) / 2), dw, dh);
+      ctx.restore();
+    } else {
+      ctx.fillStyle = "#fff"; ctx.font = `700 ${Math.round(bH7 * 0.44)}px sans-serif`;
+      ctx.textAlign = "center"; ctx.textBaseline = "middle";
+      ctx.fillText((state.newsTitle || "◆ LIVE").toUpperCase(), bx7 + bw7 / 2, by7 + bH7 / 2);
+    }
+
+    const hx7 = bx7 + bw7 + 14; const hmaxW7 = margin + cw - hx7 - 14;
+    ctx.font = `400 ${Math.round(bh * 0.34)}px sans-serif`;
+    let hl7 = state.newsText;
+    while (ctx.measureText(hl7).width > hmaxW7 && hl7.length > 5) hl7 = hl7.slice(0, -4) + "…";
+    ctx.fillStyle = "rgba(255,255,255,0.92)"; ctx.textAlign = "left"; ctx.textBaseline = "middle";
+    ctx.fillText(hl7, hx7, yTop + bh / 2);
+
+    // ── Ticker tier ───────────────────────────────────────────────────────────
+    const pulse7 = 0.5 + 0.5 * Math.sin(t * 4.0);
+    ctx.fillStyle = "rgba(255,255,255,0.80)"; ctx.shadowColor = accent; ctx.shadowBlur = 7 * pulse7;
+    ctx.beginPath(); ctx.arc(margin + 14, yTick + th / 2, Math.round(th * 0.13), 0, Math.PI * 2); ctx.fill();
+    ctx.shadowBlur = 0; ctx.shadowColor = "transparent";
+
+    ctx.fillStyle = "rgba(255,255,255,0.60)"; ctx.font = `600 ${Math.round(th * 0.30)}px sans-serif`;
+    ctx.textAlign = "left"; ctx.textBaseline = "middle";
+    ctx.fillText("LIVE", margin + 28, yTick + th / 2);
+    const lx7 = margin + 28 + ctx.measureText("LIVE").width + 12;
+    ctx.fillStyle = "rgba(255,255,255,0.20)"; ctx.fillRect(lx7, yTick + th * 0.15, 1, th * 0.70);
+    this.drawScrollText(lx7 + 10, yTick + 2, margin + cw - lx7 - 14, th - 4, 0,
+      yTick + th / 2, state.newsText, `400 ${Math.round(th * 0.35)}px sans-serif`,
+      "rgba(255,255,255,0.95)", t, this.newsScrollStartT);
+  }
+
+  // ── 8. Sports — two-tier aggressive, power gradient, diagonal slash badge ────
+  private drawTickerSports(t: number, yBase: number) {
+    const { ctx, W, H, state } = this;
+    const accent = state.newsBgColor || "#ea580c";
+    const bh  = Math.max(40, Math.round(H * 0.062));
+    const th  = Math.max(34, Math.round(H * 0.052));
+    const yTop  = yBase > 0 ? Math.min(H - bh - th - 4, yBase) : H - bh - th - 4;
+    const yTick = yTop + bh;
+
+    // ── Headline bar: bold dark + accent stripe ───────────────────────────────
+    ctx.fillStyle = "rgba(10,10,10,0.99)"; ctx.fillRect(0, yTop, W, bh);
+
+    // Bright top stripe (accent→gold→accent)
+    const topG8 = ctx.createLinearGradient(0, 0, W, 0);
+    topG8.addColorStop(0, accent); topG8.addColorStop(0.5, "#fbbf24"); topG8.addColorStop(1, accent);
+    ctx.fillStyle = topG8; ctx.fillRect(0, yTop, W, 4);
+
+    // Diagonal slash badge
+    const bw8 = this.newsLogoImg ? Math.round(bh * 2.0) : Math.round(bh * 2.5);
+    ctx.fillStyle = accent; ctx.fillRect(0, yTop + 4, bw8, bh - 4);
+    // Slash right edge
+    ctx.beginPath();
+    ctx.moveTo(bw8, yTop + 4); ctx.lineTo(bw8 + 22, yTop + 4);
+    ctx.lineTo(bw8 + 6, yTop + bh); ctx.lineTo(bw8 - 16, yTop + bh);
+    ctx.fill();
+
+    if (this.newsLogoImg) {
+      const img = this.newsLogoImg; const pad = Math.round(bh * 0.11);
+      const sc  = Math.min((bh - pad * 2) / img.height, (bw8 - pad * 2) / img.width);
+      const dw  = Math.round(img.width * sc); const dh = Math.round(img.height * sc);
+      ctx.save(); ctx.beginPath(); ctx.rect(0, yTop, bw8, bh); ctx.clip();
+      ctx.drawImage(img, Math.round((bw8 - dw) / 2), yTop + Math.round((bh - dh) / 2), dw, dh);
+      ctx.restore();
+    } else {
+      ctx.fillStyle = "#fff"; ctx.font = `900 ${Math.round(bh * 0.38)}px sans-serif`;
+      ctx.textAlign = "center"; ctx.textBaseline = "middle";
+      ctx.shadowColor = "rgba(0,0,0,0.55)"; ctx.shadowBlur = 5;
+      ctx.fillText((state.newsTitle || "⚡ SPORTS").toUpperCase(), bw8 / 2, yTop + bh / 2 + 2);
+      ctx.shadowBlur = 0;
+    }
+
+    // Headline
+    const hx8 = bw8 + 30; const hmaxW8 = W - hx8 - 14;
+    ctx.font = `800 ${Math.round(bh * 0.38)}px sans-serif`;
+    let hl8 = state.newsText;
+    while (ctx.measureText(hl8).width > hmaxW8 && hl8.length > 5) hl8 = hl8.slice(0, -4) + "…";
+    ctx.fillStyle = "rgba(255,255,255,0.97)"; ctx.textAlign = "left"; ctx.textBaseline = "middle";
+    ctx.shadowColor = "rgba(0,0,0,0.4)"; ctx.shadowBlur = 3;
+    ctx.fillText(hl8, hx8, yTop + bh / 2 + 1); ctx.shadowBlur = 0;
+
+    // ── Ticker bar: dark with amber energy ────────────────────────────────────
+    ctx.fillStyle = "rgba(12,10,8,0.98)"; ctx.fillRect(0, yTick, W, th);
+    ctx.fillStyle = accent; ctx.fillRect(0, yTick + th - 3, W, 3);
+
+    // Pulsing energy dot (amber)
+    const pulse8 = 0.5 + 0.5 * Math.abs(Math.sin(t * 6.0));
+    ctx.fillStyle = "#fbbf24"; ctx.shadowColor = "#fbbf24"; ctx.shadowBlur = 16 * pulse8;
+    ctx.beginPath(); ctx.arc(13, yTick + th / 2, Math.round(th * 0.16), 0, Math.PI * 2); ctx.fill();
+    ctx.shadowBlur = 0; ctx.shadowColor = "transparent";
+
+    ctx.fillStyle = "rgba(255,195,50,0.80)"; ctx.font = `800 ${Math.round(th * 0.33)}px sans-serif`;
+    ctx.textAlign = "left"; ctx.textBaseline = "middle";
+    ctx.fillText("LIVE", 30, yTick + th / 2);
+    const lx8 = 30 + ctx.measureText("LIVE").width + 14;
+    ctx.fillStyle = `${accent}55`; ctx.fillRect(lx8, yTick + th * 0.12, 2, th * 0.76);
+    this.drawScrollText(lx8 + 12, yTick + 2, W - lx8 - 18, th - 4, 0,
+      yTick + th / 2, state.newsText, `800 ${Math.round(th * 0.38)}px sans-serif`,
+      "rgba(255,255,255,0.97)", t, this.newsScrollStartT);
+  }
+
+  // ── 9. Cinematic — two-tier near-black, gold hairlines, letter-spaced ────────
+  private drawTickerCinematic(t: number, yBase: number) {
+    const { ctx, W, H, state } = this;
+    const accent = state.newsBgColor || "#c9a84c";
+    const bh  = Math.max(36, Math.round(H * 0.056));
+    const th  = Math.max(28, Math.round(H * 0.044));
+    const yTop  = yBase > 0 ? Math.min(H - bh - th - 4, yBase) : H - bh - th - 4;
+    const yTick = yTop + bh;
+
+    // ── Headline bar ─────────────────────────────────────────────────────────
+    ctx.fillStyle = "rgba(6,5,4,0.99)"; ctx.fillRect(0, yTop, W, bh);
+
+    // Gold hairlines (taper at edges)
+    const goldLine9 = ctx.createLinearGradient(0, 0, W, 0);
+    goldLine9.addColorStop(0, "transparent"); goldLine9.addColorStop(0.10, accent);
+    goldLine9.addColorStop(0.90, accent); goldLine9.addColorStop(1, "transparent");
+    ctx.fillStyle = goldLine9; ctx.fillRect(0, yTop, W, 1);
+
+    // Label zone
+    const bw9 = this.newsLogoImg ? Math.round(bh * 2.0) : Math.round(bh * 2.2);
+    if (this.newsLogoImg) {
+      const img = this.newsLogoImg; const pad = Math.round(bh * 0.15);
+      const sc  = Math.min((bh - pad * 2) / img.height, (bw9 - pad * 2) / img.width);
+      const dw  = Math.round(img.width * sc); const dh = Math.round(img.height * sc);
+      ctx.save(); ctx.beginPath(); ctx.rect(0, yTop, bw9, bh); ctx.clip();
+      ctx.drawImage(img, Math.round((bw9 - dw) / 2), yTop + Math.round((bh - dh) / 2), dw, dh);
+      ctx.restore();
+    } else {
+      // Manually letter-spaced cinematic label
+      const label9 = (state.newsTitle || "LIVE").toUpperCase();
+      ctx.fillStyle = accent; ctx.font = `300 ${Math.round(bh * 0.30)}px sans-serif`;
+      ctx.textAlign = "left"; ctx.textBaseline = "middle";
+      let lxc9 = 18;
+      for (const ch of label9) { ctx.fillText(ch, lxc9, yTop + bh / 2); lxc9 += ctx.measureText(ch).width + 4; }
+    }
+
+    ctx.fillStyle = `${accent}66`; ctx.fillRect(bw9, yTop + bh * 0.18, 1, bh * 0.64);
+
+    // Headline — light weight, warm tone
+    const hx9 = bw9 + 20; const hmaxW9 = W - hx9 - 18;
+    ctx.font = `300 ${Math.round(bh * 0.32)}px sans-serif`;
+    let hl9 = state.newsText;
+    while (ctx.measureText(hl9).width > hmaxW9 && hl9.length > 5) hl9 = hl9.slice(0, -4) + "…";
+    ctx.fillStyle = "rgba(215,200,175,0.92)"; ctx.textAlign = "left"; ctx.textBaseline = "middle";
+    ctx.fillText(hl9, hx9, yTop + bh / 2);
+
+    // Gold hairline between tiers
+    ctx.fillStyle = goldLine9; ctx.fillRect(0, yTop + bh - 1, W, 1);
+
+    // ── Ticker bar ───────────────────────────────────────────────────────────
+    ctx.fillStyle = "rgba(8,6,4,0.99)"; ctx.fillRect(0, yTick, W, th);
+    ctx.fillStyle = goldLine9; ctx.fillRect(0, yTick + th - 1, W, 1);
+
+    const pulse9 = 0.55 + 0.45 * Math.sin(t * 3.2);
+    ctx.save(); ctx.globalAlpha *= pulse9;
+    ctx.fillStyle = accent;
+    ctx.beginPath(); ctx.arc(13, yTick + th / 2, Math.round(th * 0.12), 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
+
+    ctx.fillStyle = `${accent}88`; ctx.font = `300 ${Math.round(th * 0.31)}px sans-serif`;
+    ctx.textAlign = "left"; ctx.textBaseline = "middle";
+    ctx.fillText("UPDATE", 27, yTick + th / 2);
+    const lx9 = 27 + ctx.measureText("UPDATE").width + 14;
+    ctx.fillStyle = `${accent}40`; ctx.fillRect(lx9, yTick + th * 0.20, 1, th * 0.60);
+    this.drawScrollText(lx9 + 12, yTick + 2, W - lx9 - 18, th - 4, 0,
+      yTick + th / 2, state.newsText, `300 ${Math.round(th * 0.33)}px sans-serif`,
+      "#d4bfa0", t, this.newsScrollStartT);
+  }
+
+  // ── 10. Gold Luxury — two-tier rich black, gold shimmer, premium border ───────
+  private drawTickerGoldLuxury(t: number, yBase: number) {
+    const { ctx, W, H, state } = this;
+    const accent = state.newsBgColor || "#d4a017";
+    const r      = Math.round(H * 0.018);
+    const bh     = Math.max(40, Math.round(H * 0.062));
+    const th     = Math.max(32, Math.round(H * 0.050));
+    const yTop   = yBase > 0 ? Math.min(H - bh - th - 6, yBase) : H - bh - th - 6;
+    const yTick  = yTop + bh;
+
+    // ── Rich black base (both tiers) ──────────────────────────────────────────
+    const blackG10 = ctx.createLinearGradient(0, yTop, 0, yTop + bh + th);
+    blackG10.addColorStop(0, "rgba(20,15,4,0.99)"); blackG10.addColorStop(1, "rgba(8,6,2,0.99)");
+    ctx.fillStyle = blackG10;
+    this.fillRoundRect(0, yTop, W, bh + th, r);
+
+    // Animated gold shimmer
+    const shimT10 = ((t * 0.11) % 1.7) * W - 0.35 * W;
+    const shimG10 = ctx.createLinearGradient(shimT10 - 130, 0, shimT10 + 130, 0);
+    shimG10.addColorStop(0, "transparent"); shimG10.addColorStop(0.5, "rgba(255,220,90,0.07)"); shimG10.addColorStop(1, "transparent");
+    this.clipRoundRect(0, yTop, W, bh + th, r, () => { ctx.fillStyle = shimG10; ctx.fillRect(0, yTop, W, bh + th); });
+
+    // Gold gradient border
+    this.roundRect(0, yTop, W, bh + th, r);
+    ctx.strokeStyle = `${accent}88`; ctx.lineWidth = 1.5; ctx.stroke();
+
+    // Gold separator between tiers
+    const sepGold10 = ctx.createLinearGradient(0, 0, W, 0);
+    sepGold10.addColorStop(0, "transparent"); sepGold10.addColorStop(0.1, accent);
+    sepGold10.addColorStop(0.9, accent); sepGold10.addColorStop(1, "transparent");
+    ctx.fillStyle = sepGold10; ctx.fillRect(0, yTop + bh, W, 1);
+
+    // ── Headline tier: gold gradient badge ────────────────────────────────────
+    const bw10 = this.newsLogoImg ? Math.round(bh * 2.0) : Math.round(bh * 2.4);
+    const goldG10 = ctx.createLinearGradient(0, yTop, bw10, yTop + bh);
+    goldG10.addColorStop(0, "#fde68a"); goldG10.addColorStop(0.35, accent);
+    goldG10.addColorStop(0.70, "#8b6508"); goldG10.addColorStop(1, accent);
+    ctx.fillStyle = goldG10;
+    this.fillRoundRect(0, yTop, bw10 + r, bh, r);
+    ctx.fillRect(bw10, yTop, r, bh);
+
+    if (this.newsLogoImg) {
+      const img = this.newsLogoImg; const pad = Math.round(bh * 0.13);
+      const sc  = Math.min((bh - pad * 2) / img.height, (bw10 - pad * 2) / img.width);
+      const dw  = Math.round(img.width * sc); const dh = Math.round(img.height * sc);
+      ctx.save(); this.fillRoundRect(0, yTop, bw10, bh, r); ctx.clip();
+      ctx.drawImage(img, Math.round((bw10 - dw) / 2), yTop + Math.round((bh - dh) / 2), dw, dh);
+      ctx.restore();
+    } else {
+      ctx.fillStyle = "#0a0600"; ctx.font = `900 ${Math.round(bh * 0.32)}px sans-serif`;
+      ctx.textAlign = "center"; ctx.textBaseline = "middle";
+      ctx.fillText((state.newsTitle || "★ LIVE").toUpperCase(), bw10 / 2, yTop + bh / 2 + 1);
+    }
+
+    ctx.fillStyle = `${accent}55`; ctx.fillRect(bw10 + 1, yTop + bh * 0.15, 1, bh * 0.70);
+
+    const hx10 = bw10 + 16; const hmaxW10 = W - hx10 - 14;
+    ctx.font = `600 ${Math.round(bh * 0.34)}px sans-serif`;
+    let hl10 = state.newsText;
+    while (ctx.measureText(hl10).width > hmaxW10 && hl10.length > 5) hl10 = hl10.slice(0, -4) + "…";
+    ctx.fillStyle = "#f0d97a"; ctx.textAlign = "left"; ctx.textBaseline = "middle";
+    ctx.fillText(hl10, hx10, yTop + bh / 2);
+
+    // ── Ticker tier ───────────────────────────────────────────────────────────
+    const pulse10 = 0.5 + 0.5 * Math.sin(t * 3.5);
+    ctx.fillStyle = accent; ctx.shadowColor = accent; ctx.shadowBlur = 12 * pulse10;
+    ctx.beginPath(); ctx.arc(13, yTick + th / 2, Math.round(th * 0.14), 0, Math.PI * 2); ctx.fill();
+    ctx.shadowBlur = 0; ctx.shadowColor = "transparent";
+
+    ctx.fillStyle = `${accent}cc`; ctx.font = `600 ${Math.round(th * 0.31)}px sans-serif`;
+    ctx.textAlign = "left"; ctx.textBaseline = "middle";
+    ctx.fillText("LATEST", 28, yTick + th / 2);
+    const lx10 = 28 + ctx.measureText("LATEST").width + 12;
+    ctx.fillStyle = `${accent}44`; ctx.fillRect(lx10, yTick + th * 0.15, 1, th * 0.70);
+    this.drawScrollText(lx10 + 10, yTick + 2, W - lx10 - 16, th - 4, 0,
+      yTick + th / 2, state.newsText, `600 ${Math.round(th * 0.35)}px sans-serif`,
+      "#f5e08a", t, this.newsScrollStartT);
+  }
+
+  // ── 11. Minimal — single-tier, Swiss precision, refined typography ────────────
+  private drawTickerMinimal(t: number, yBase: number) {
+    const { ctx, W, H, state } = this;
+    const accent = state.newsBgColor || "#94a3b8";
+    const bh = Math.max(32, Math.round(H * 0.050));
+    const y  = yBase > 0 ? Math.min(H - bh - 8, yBase) : H - bh - 8;
+
+    // Near-invisible refined bar
+    ctx.fillStyle = "rgba(0,0,0,0.72)"; ctx.fillRect(0, y, W, bh);
+
+    // Left: 2px accent vertical rule
+    ctx.fillStyle = accent; ctx.fillRect(0, y, 2, bh);
+
+    // Pulsing dot (subtle)
+    const pulse11 = 0.55 + 0.45 * Math.sin(t * 3.8);
+    ctx.save(); ctx.globalAlpha *= pulse11;
+    ctx.fillStyle = accent;
+    ctx.beginPath(); ctx.arc(12, y + bh / 2, Math.round(bh * 0.11), 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
+
+    // Channel label
+    const bw11 = this.newsLogoImg ? Math.round(bh * 1.9) : Math.round(bh * 1.7);
+    if (this.newsLogoImg) {
+      const img = this.newsLogoImg; const pad = Math.round(bh * 0.15);
+      const sc  = Math.min((bh - pad * 2) / img.height, (bw11 - pad * 2) / img.width);
+      const dw  = Math.round(img.width * sc); const dh = Math.round(img.height * sc);
+      ctx.save(); ctx.beginPath(); ctx.rect(0, y, bw11, bh); ctx.clip();
+      ctx.drawImage(img, Math.round((bw11 - dw) / 2), y + Math.round((bh - dh) / 2), dw, dh);
+      ctx.restore();
+    } else {
+      ctx.fillStyle = accent; ctx.font = `500 ${Math.round(bh * 0.35)}px sans-serif`;
+      ctx.textAlign = "left"; ctx.textBaseline = "middle";
+      ctx.fillText((state.newsTitle || "LIVE").toUpperCase(), 22, y + bh / 2);
+    }
+
+    // Thin separator
+    ctx.fillStyle = "rgba(255,255,255,0.14)"; ctx.fillRect(bw11 + 2, y + bh * 0.22, 1, bh * 0.56);
+
+    // Scrolling text — refined, lighter weight
+    this.drawScrollText(bw11 + 12, y, W - bw11 - 18, bh, 0,
+      y + bh / 2, state.newsText, `400 ${Math.round(bh * 0.38)}px sans-serif`,
+      "rgba(215,220,228,0.88)", t, this.newsScrollStartT);
   }
 
   // ══════════════════════════════════════════════════════════════════════════
