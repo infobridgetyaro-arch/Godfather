@@ -81,6 +81,7 @@ function mapToOverlayPatch(s: NewsOverlayState): Record<string, unknown> {
     newsPosition:    s.layout?.position ?? { x: 0, y: 95 },
     newsLogo:        s.logo ?? "",
     newsScrollSpeed: s.ticker?.speed ?? 30,
+    newsTickerMode:  s.tickerMotion ?? "Scroll",
     // newsScale is controlled exclusively via broadcastState (control-room SizeSlider).
     // Do NOT set it here — pushToStreamRenderers would overwrite the user's slider value.
   };

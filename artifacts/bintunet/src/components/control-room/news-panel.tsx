@@ -123,6 +123,48 @@ const MOTION_ENGINE_KEYFRAMES = `
   @keyframes no-pulse       { 0%,100%{opacity:1} 50%{opacity:0.2} }
 `;
 
+// ── PreviewTickerDisplay — mirrors TickerDisplay from broadcast.tsx ────────────
+
+function PreviewTickerDisplay({ text, speed, color, fontSize, fontWeight, separator, mode }: {
+  text: string; speed?: number; color?: string; fontSize?: number; fontWeight?: number; separator?: string; mode?: string;
+}) {
+  if (!mode || mode === "Scroll") {
+    return <TickerScroll text={text} speed={speed} color={color} fontSize={fontSize} fontWeight={fontWeight} separator={separator} />;
+  }
+  const base: React.CSSProperties = { flex: 1, overflow: "hidden", display: "flex", alignItems: "center", padding: "0 8px", minWidth: 0 };
+  if (mode === "Stationary") return (
+    <div style={base}>
+      <span key={text} style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", fontSize, fontWeight, color, animation: "ptd-fade 8s ease infinite" }}>{text}</span>
+      <style>{`@keyframes ptd-fade{0%{opacity:0}8%{opacity:1}88%{opacity:1}100%{opacity:0}}`}</style>
+    </div>
+  );
+  if (mode === "Flap") return (
+    <div style={{ ...base, perspective: 600 }}>
+      <span key={text} style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", fontSize, fontWeight, color, display: "inline-block", transformOrigin: "center", animation: "ptd-flap 0.55s cubic-bezier(.4,0,.2,1) both" }}>{text}</span>
+      <style>{`@keyframes ptd-flap{0%{transform:rotateX(90deg);opacity:0}50%{transform:rotateX(-8deg);opacity:1}100%{transform:rotateX(0deg);opacity:1}}`}</style>
+    </div>
+  );
+  if (mode === "Typewriter") return (
+    <div style={base}>
+      <span key={text} style={{ whiteSpace: "nowrap", fontSize, fontWeight, color, animation: "ptd-type 3.5s steps(45,end) both" }}>{text}</span>
+      <style>{`@keyframes ptd-type{from{clip-path:inset(0 100% 0 0)}to{clip-path:inset(0 0% 0 0)}}`}</style>
+    </div>
+  );
+  if (mode === "Wave") return (
+    <div style={base}>
+      <span style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", fontSize, fontWeight, color, display: "inline-block", animation: "ptd-wave 2s ease-in-out infinite" }}>{text}</span>
+      <style>{`@keyframes ptd-wave{0%,100%{transform:translateY(0)}50%{transform:translateY(-5px)}}`}</style>
+    </div>
+  );
+  if (mode === "Carousel") return (
+    <div style={{ ...base, overflow: "hidden" }}>
+      <span key={text} style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", fontSize, fontWeight, color, display: "inline-block", animation: "ptd-carousel 7s cubic-bezier(.4,0,.2,1) both" }}>{text}</span>
+      <style>{`@keyframes ptd-carousel{0%{transform:translateY(110%);opacity:0}12%{transform:translateY(0);opacity:1}88%{transform:translateY(0);opacity:1}100%{transform:translateY(-110%);opacity:0}}`}</style>
+    </div>
+  );
+  return <TickerScroll text={text} speed={speed} color={color} fontSize={fontSize} fontWeight={fontWeight} separator={separator} />;
+}
+
 // ── TickerScroll ───────────────────────────────────────────────────────────────
 
 function TickerScroll({ text, speed = 30, color = "#fff", fontSize = 13, fontWeight = 600, separator = "   ◆   " }: {
@@ -359,7 +401,7 @@ function LivePreview({ state }: { state: NewsOverlayState }) {
               {tickerText && (
                 <div style={{ display: "flex", alignItems: "center", padding: "0 14px", height: 26, borderTop: "1px solid rgba(255,255,255,0.06)", background: "rgba(0,0,0,0.26)", gap: 8 }}>
                   <div style={{ width: 2, height: 11, background: accent, opacity: 0.65, borderRadius: 1, flexShrink: 0 }} />
-                  <TickerScroll text={tickerText} speed={speed} color={`${textCol}77`} fontSize={11} fontWeight={500} separator="   ◆   " />
+                  <PreviewTickerDisplay text={tickerText} speed={speed} color={`${textCol}77`} fontSize={11} fontWeight={500} separator="   ◆   " mode={state.tickerMotion} />
                 </div>
               )}
             </div>
