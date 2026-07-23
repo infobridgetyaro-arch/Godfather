@@ -123,6 +123,7 @@ interface NewsOverlayLive {
   breakingNews: { active: boolean; text: string; flashInterval: number; overridesTicker: boolean };
   ticker: { style: string; direction: string; speed: number; paused: boolean; separator: string };
   tickerMessages: Array<{ id: string; text: string; priority: number }>;
+  tickerMotion?: string;
   enterAnimation: string;
   exitAnimation: string;
   animationDurationMs: number;
@@ -2248,7 +2249,7 @@ export default function BroadcastPage() {
 
       {/* News overlay — API-driven (new system) */}
       {newsOverlay?.active && !state?.breakActive && (
-        <NewsOverlayRenderer overlay={newsOverlay} isMobile={isMobile} newsScale={state?.newsScale} tickerMode={state?.newsTickerMode} />
+        <NewsOverlayRenderer overlay={newsOverlay} isMobile={isMobile} newsScale={state?.newsScale} tickerMode={newsOverlay.tickerMotion ?? state?.newsTickerMode} />
       )}
 
       {/* News overlay — legacy broadcast-state system (fallback when API overlay is off) */}

@@ -188,6 +188,7 @@ export function applyThemeFull(themeName: ThemeName): NewsOverlayState {
 export function addMessage(text: string, priority = 0, expiresInMs?: number) {
   const msg = addTickerMessage(text, priority, expiresInMs);
   emitTickerEvent();
+  emitState();
   if (getState().active) pushToStreamRenderers();
   return msg;
 }
@@ -196,6 +197,7 @@ export function removeMessage(id: string): boolean {
   const ok = removeTickerMessage(id);
   if (ok) {
     emitTickerEvent();
+    emitState();
     if (getState().active) pushToStreamRenderers();
   }
   return ok;
@@ -204,6 +206,7 @@ export function removeMessage(id: string): boolean {
 export function clearMessages(): void {
   clearTickerMessages();
   emitTickerEvent();
+  emitState();
   if (getState().active) pushToStreamRenderers();
 }
 
