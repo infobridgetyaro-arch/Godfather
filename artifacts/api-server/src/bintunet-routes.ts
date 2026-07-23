@@ -143,6 +143,15 @@ interface BroadcastState {
   bgGradient1: string;
   bgGradient2: string;
   bgGradientOpacity: number;
+  bgGradientStyle: string;
+  bgGradientSpeed: number;
+  bgGradientBlur: number;
+  bgGradientBrightness: number;
+  bgGradientSaturation: number;
+  bgGradientRotation: number;
+  bgGradientZoom: number;
+  bgGradientAnimEnabled: boolean;
+  bgGradientPresets: Array<{ name: string; c1: string; c2: string; style: string }>;
   // Mobile (portrait) position overrides
   mobileStatsPosition: OverlayPosition;
   mobileSubsPosition: OverlayPosition;
@@ -259,6 +268,15 @@ let broadcastState: BroadcastState = {
   bgGradient1: "#6d28d9",
   bgGradient2: "#0891b2",
   bgGradientOpacity: 0.45,
+  bgGradientStyle: "Flow",
+  bgGradientSpeed: 30,
+  bgGradientBlur: 80,
+  bgGradientBrightness: 100,
+  bgGradientSaturation: 100,
+  bgGradientRotation: 0,
+  bgGradientZoom: 110,
+  bgGradientAnimEnabled: true,
+  bgGradientPresets: [] as Array<{ name: string; c1: string; c2: string; style: string }>,
   mobileStatsPosition: { x: 2, y: 2 },
   mobileSubsPosition: { x: 60, y: 2 },
   mobileChatBurnPosition: { x: 2, y: 55 },

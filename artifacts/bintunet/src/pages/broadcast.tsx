@@ -1,5 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { PlatformLogo, PLATFORM_BG, PLATFORM_ACCENT, PLATFORM_LIGHT } from "@/lib/platform-logos";
+import { AnimatedGradientBackground } from "@/components/animated-gradient-bg";
+import type { GradientStyle } from "@/components/animated-gradient-bg";
 
 interface OverlayPosition { x: number; y: number; }
 
@@ -32,6 +34,15 @@ interface BroadcastState {
   bgGradient2: string;
   bgGradientActive: boolean;
   bgGradientOpacity: number;
+  bgGradientStyle?: string;
+  bgGradientSpeed?: number;
+  bgGradientBlur?: number;
+  bgGradientBrightness?: number;
+  bgGradientSaturation?: number;
+  bgGradientRotation?: number;
+  bgGradientZoom?: number;
+  bgGradientAnimEnabled?: boolean;
+  bgGradientPresets?: Array<{ name: string; c1: string; c2: string; style: string }>;
   chatStyle: string;
   chatBurnActive: boolean;
   chatBurnPosition: OverlayPosition;
@@ -2367,50 +2378,21 @@ export default function BroadcastPage() {
       fontFamily: "'Inter', 'Helvetica Neue', Arial, sans-serif",
       overflow: "hidden",
     }}>
-      {/* BG gradient — multi-blob atmosphere overlay, visible on any video */}
-      {state?.bgGradientActive && !state.breakActive && (
-        <>
-          {/* Primary blob — top-left */}
-          <div style={{
-            position: "fixed",
-            top: "-20%", left: "-15%",
-            width: "70%", height: "70%",
-            borderRadius: "50%",
-            background: state.bgGradient1,
-            opacity: (state.bgGradientOpacity ?? 0.45) * 0.72,
-            filter: "blur(80px)",
-            transition: "opacity 0.4s ease",
-            zIndex: 0,
-            pointerEvents: "none",
-          }} />
-          {/* Secondary blob — bottom-right */}
-          <div style={{
-            position: "fixed",
-            bottom: "-20%", right: "-15%",
-            width: "72%", height: "72%",
-            borderRadius: "50%",
-            background: state.bgGradient2,
-            opacity: (state.bgGradientOpacity ?? 0.45) * 0.6,
-            filter: "blur(80px)",
-            transition: "opacity 0.4s ease",
-            zIndex: 0,
-            pointerEvents: "none",
-          }} />
-          {/* Accent blob — centre */}
-          <div style={{
-            position: "fixed",
-            top: "20%", left: "25%",
-            width: "50%", height: "56%",
-            borderRadius: "50%",
-            background: `color-mix(in srgb, ${state.bgGradient1} 50%, ${state.bgGradient2})`,
-            opacity: (state.bgGradientOpacity ?? 0.45) * 0.32,
-            filter: "blur(80px)",
-            transition: "opacity 0.4s ease",
-            zIndex: 0,
-            pointerEvents: "none",
-          }} />
-        </>
-      )}
+      {/* BG gradient — animated full-screen background, sits at z-index 0 behind everything */}
+      <AnimatedGradientBackground
+        active={!!(state?.bgGradientActive && !state.breakActive)}
+        color1={state?.bgGradient1 ?? "#6d28d9"}
+        color2={state?.bgGradient2 ?? "#0891b2"}
+        opacity={state?.bgGradientOpacity ?? 0.45}
+        style={(state?.bgGradientStyle as GradientStyle) ?? "Flow"}
+        speed={state?.bgGradientSpeed ?? 30}
+        blur={state?.bgGradientBlur ?? 80}
+        brightness={state?.bgGradientBrightness ?? 100}
+        saturation={state?.bgGradientSaturation ?? 100}
+        rotation={state?.bgGradientRotation ?? 0}
+        zoom={state?.bgGradientZoom ?? 110}
+        animEnabled={state?.bgGradientAnimEnabled ?? true}
+      />
 
       {/* Show idle screen only when no overlays are active and no chat yet */}
       {!hasOverlay && chat.length === 0 && <StageIdle connected={connected} />}

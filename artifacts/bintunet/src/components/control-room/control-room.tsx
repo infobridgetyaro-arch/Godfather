@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef, lazy, Suspense } from "react";
 import React from "react";
+import { GRADIENT_STYLES } from "@/components/animated-gradient-bg";
 import {
   Newspaper, Megaphone, Coffee, MessageSquare, BarChart2, Users,
   ChevronDown, ChevronUp, Radio, ExternalLink, Play, Square, Image,
@@ -116,6 +117,15 @@ interface BroadcastState {
   bgGradient1: string;
   bgGradient2: string;
   bgGradientOpacity: number;
+  bgGradientStyle: string;
+  bgGradientSpeed: number;
+  bgGradientBlur: number;
+  bgGradientBrightness: number;
+  bgGradientSaturation: number;
+  bgGradientRotation: number;
+  bgGradientZoom: number;
+  bgGradientAnimEnabled: boolean;
+  bgGradientPresets: Array<{ name: string; c1: string; c2: string; style: string }>;
   mobileStatsPosition: OverlayPosition;
   mobileSubsPosition: OverlayPosition;
   mobileChatBurnPosition: OverlayPosition;
@@ -926,6 +936,9 @@ export function ControlRoom({ streams, streamStats, streamChat, streamProcStats 
     guestNameActive: false, guestName: "Guest Name", guestTitle: "Title / Channel", guestStyle: "Classic",
     guestPosition: { x: 2, y: 78 }, mobileGuestPosition: { x: 2, y: 78 },
     bgGradientActive: false, bgGradient1: "#6d28d9", bgGradient2: "#0891b2", bgGradientOpacity: 0.45,
+    bgGradientStyle: "Flow", bgGradientSpeed: 30, bgGradientBlur: 80, bgGradientBrightness: 100,
+    bgGradientSaturation: 100, bgGradientRotation: 0, bgGradientZoom: 110, bgGradientAnimEnabled: true,
+    bgGradientPresets: [] as Array<{ name: string; c1: string; c2: string; style: string }>,
     mobileStatsPosition: { x: 2, y: 2 },
     mobileSubsPosition: { x: 60, y: 2 },
     mobileChatBurnPosition: { x: 2, y: 55 },
@@ -3016,108 +3029,160 @@ export function ControlRoom({ streams, streamStats, streamChat, streamProcStats 
                 </>
               )}
 
-              <SectionDivider label="Background Gradient" />
+              <SectionDivider label="Animated Background Gradient" />
               <div style={{ color: "rgba(255,255,255,0.5)", fontSize: 12, lineHeight: 1.6 }}>
-                Add a gradient behind the video — visible in the letterbox bars when the source doesn't fill the full frame. Does not affect the video content itself.
+                Full-screen animated gradient layer — always behind the video. Visible in letterbox bars and transparent areas of the source.
               </div>
 
-              {/* Gradient preview swatch */}
+              {/* Live preview swatch */}
               <div style={{
                 borderRadius: 12, overflow: "hidden", height: 72, position: "relative",
                 background: `linear-gradient(135deg, ${bs.bgGradient1}, ${bs.bgGradient2})`,
-                border: `1px solid ${bs.bgGradientActive ? "rgba(251,113,133,0.5)" : "rgba(255,255,255,0.1)"}`,
+                border: `1px solid ${bs.bgGradientActive ? "rgba(251,113,133,0.6)" : "rgba(255,255,255,0.1)"}`,
                 transition: "border-color 0.3s ease",
               }}>
-                {!bs.bgGradientActive && (
-                  <div style={{
-                    position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center",
-                    background: "rgba(0,0,0,0.45)",
-                    fontSize: 11, color: "rgba(255,255,255,0.7)", fontWeight: 600,
-                  }}>
-                    Preview — tap Go Live to activate
-                  </div>
-                )}
+                <div style={{
+                  position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center",
+                  background: bs.bgGradientActive ? "transparent" : "rgba(0,0,0,0.45)",
+                  fontSize: 11, fontWeight: 700, transition: "background 0.3s",
+                  color: bs.bgGradientActive ? "#fff" : "rgba(255,255,255,0.7)",
+                }}>
+                  {bs.bgGradientActive
+                    ? <span style={{ color: "#fb7185", textShadow: "0 0 12px #fb718588" }}>● LIVE — {bs.bgGradientStyle}</span>
+                    : "Preview — tap Go Live to activate"}
+                </div>
+              </div>
+
+              {/* Animation style picker */}
+              <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 2 }}>Animation Style</div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 5 }}>
+                {GRADIENT_STYLES.map((s) => {
+                  const active = (bs.bgGradientStyle ?? "Flow") === s;
+                  return (
+                    <button key={s} onClick={() => update({ bgGradientStyle: s })} style={{
+                      padding: "6px 10px", borderRadius: 7, cursor: "pointer", textAlign: "left",
+                      fontSize: 11, fontWeight: active ? 700 : 400,
+                      border: `1px solid ${active ? "rgba(251,113,133,0.7)" : "rgba(255,255,255,0.08)"}`,
+                      background: active ? "rgba(251,113,133,0.18)" : "rgba(255,255,255,0.03)",
+                      color: active ? "#fda4af" : "rgba(255,255,255,0.55)",
+                      transition: "all 0.15s ease",
+                    }}>{s}</button>
+                  );
+                })}
               </div>
 
               {/* Color pickers */}
               <div style={{ display: "flex", gap: 10 }}>
                 {(["bgGradient1", "bgGradient2"] as const).map((field, i) => (
                   <div key={field} style={{ flex: 1 }}>
-                    <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", marginBottom: 6, textTransform: "uppercase", letterSpacing: "0.07em" }}>
-                      Colour {i + 1}
-                    </div>
+                    <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", marginBottom: 6, textTransform: "uppercase", letterSpacing: "0.07em" }}>Colour {i + 1}</div>
                     <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                      <input
-                        type="color"
-                        value={(bs as any)[field]}
+                      <input type="color" value={(bs as any)[field]}
                         onChange={(e) => {
                           const val = e.target.value;
                           localUpdate({ [field]: val } as any);
-                          // Always persist to server so gradient shows on next activation
                           if ((window as any).__bgDebTimer) clearTimeout((window as any).__bgDebTimer);
                           (window as any).__bgDebTimer = setTimeout(() => update({ [field]: val } as any), 400);
                         }}
-                        style={{ width: 36, height: 32, borderRadius: 6, border: "1px solid rgba(255,255,255,0.2)", cursor: "pointer", padding: 2 }}
-                      />
-                      <span style={{ fontSize: 11, fontFamily: "monospace", color: "rgba(255,255,255,0.5)" }}>
-                        {(bs as any)[field]}
-                      </span>
+                        style={{ width: 36, height: 32, borderRadius: 6, border: "1px solid rgba(255,255,255,0.2)", cursor: "pointer", padding: 2 }} />
+                      <span style={{ fontSize: 11, fontFamily: "monospace", color: "rgba(255,255,255,0.5)" }}>{(bs as any)[field]}</span>
                     </div>
                   </div>
                 ))}
               </div>
 
-              {/* Opacity slider */}
-              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: "0.07em" }}>
-                  Opacity (in bars)
+              {/* Speed + animate toggle */}
+              {([ 
+                { label: "Speed", key: "bgGradientSpeed" as const, min: 5, max: 120, step: 5, unit: "s loop", val: bs.bgGradientSpeed ?? 30 },
+              ] as const).map(({ label, key, min, max, step, unit, val }) => (
+                <div key={key} style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between" }}>
+                    <span style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: "0.07em" }}>{label}</span>
+                    <span style={{ fontSize: 11, color: "#fda4af", fontWeight: 600 }}>{val}{unit}</span>
+                  </div>
+                  <input type="range" min={min} max={max} step={step} value={val}
+                    onChange={(e) => update({ [key]: Number(e.target.value) } as any)}
+                    style={{ accentColor: "#fb7185", cursor: "pointer" }} />
                 </div>
-                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                  <input
-                    type="range"
-                    min={0.1} max={1} step={0.05}
-                    value={bs.bgGradientOpacity}
-                    onChange={(e) => (bs.bgGradientActive ? update : localUpdate)({ bgGradientOpacity: Number(e.target.value) })}
-                    style={{ flex: 1, accentColor: "#fb7185", cursor: "pointer" }}
-                  />
-                  <span style={{ fontSize: 11, color: "rgba(255,255,255,0.5)", width: 36, textAlign: "right" }}>
-                    {Math.round(bs.bgGradientOpacity * 100)}%
-                  </span>
-                </div>
+              ))}
+
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                <span style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: "0.07em" }}>Animate</span>
+                <button onClick={() => update({ bgGradientAnimEnabled: !(bs.bgGradientAnimEnabled ?? true) })}
+                  style={{ width: 38, height: 21, borderRadius: 11, border: "1px solid rgba(255,255,255,0.15)", background: (bs.bgGradientAnimEnabled ?? true) ? "#fb7185" : "rgba(255,255,255,0.08)", position: "relative", cursor: "pointer", padding: 0, transition: "background 0.2s ease" }}
+                  aria-label="Toggle animation">
+                  <span style={{ position: "absolute", top: 2, left: (bs.bgGradientAnimEnabled ?? true) ? 19 : 2, width: 15, height: 15, borderRadius: "50%", background: "#fff", transition: "left 0.2s ease" }} />
+                </button>
               </div>
 
-              <SectionDivider label="Quick presets" />
+              <SectionDivider label="Appearance" />
+
+              {([
+                { label: "Opacity",    key: "bgGradientOpacity"    as const, min: 0.05, max: 1,   step: 0.05, unit: "%", factor: 100,  val: bs.bgGradientOpacity ?? 0.45 },
+                { label: "Blur",       key: "bgGradientBlur"       as const, min: 0,    max: 120, step: 5,    unit: "px",factor: 1,    val: bs.bgGradientBlur ?? 80 },
+                { label: "Brightness", key: "bgGradientBrightness" as const, min: 30,   max: 200, step: 5,    unit: "%", factor: 1,    val: bs.bgGradientBrightness ?? 100 },
+                { label: "Saturation", key: "bgGradientSaturation" as const, min: 0,    max: 200, step: 5,    unit: "%", factor: 1,    val: bs.bgGradientSaturation ?? 100 },
+                { label: "Rotation",   key: "bgGradientRotation"   as const, min: 0,    max: 360, step: 5,    unit: "°", factor: 1,    val: bs.bgGradientRotation ?? 0 },
+                { label: "Zoom",       key: "bgGradientZoom"       as const, min: 100,  max: 200, step: 5,    unit: "%", factor: 1,    val: bs.bgGradientZoom ?? 110 },
+              ] as const).map(({ label, key, min, max, step, unit, factor, val }) => (
+                <div key={key} style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between" }}>
+                    <span style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: "0.07em" }}>{label}</span>
+                    <span style={{ fontSize: 11, color: "#fda4af", fontWeight: 600 }}>{Math.round((val as number) * factor)}{unit}</span>
+                  </div>
+                  <input type="range" min={min} max={max} step={step} value={val as number}
+                    onChange={(e) => (bs.bgGradientActive ? update : localUpdate)({ [key]: Number(e.target.value) } as any)}
+                    style={{ accentColor: "#fb7185", cursor: "pointer" }} />
+                </div>
+              ))}
+
+              <SectionDivider label="Colour Presets" />
 
               <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
                 {[
-                  { label: "Midnight", c1: "#0f0c29", c2: "#302b63" },
-                  { label: "Sunset",   c1: "#f7971e", c2: "#c71d6f" },
-                  { label: "Ocean",    c1: "#0f2027", c2: "#2c5364" },
-                  { label: "Forest",   c1: "#134e5e", c2: "#71b280" },
-                  { label: "Lava",     c1: "#200122", c2: "#6f0000" },
-                  { label: "Neon",     c1: "#08004a", c2: "#0057ff" },
-                ].map((preset) => (
-                  <button
-                    key={preset.label}
-                    onClick={() => update({ bgGradient1: preset.c1, bgGradient2: preset.c2 })}
-                    style={{
-                      display: "flex", alignItems: "center", gap: 6,
-                      padding: "4px 10px", borderRadius: 20, cursor: "pointer",
-                      border: "1px solid rgba(255,255,255,0.1)",
-                      background: "transparent",
-                      color: "rgba(255,255,255,0.7)", fontSize: 11, fontWeight: 600,
-                      transition: "all 0.18s ease",
-                    }}
-                  >
-                    <div style={{
-                      width: 12, height: 12, borderRadius: "50%",
-                      background: `linear-gradient(135deg, ${preset.c1}, ${preset.c2})`,
-                      border: "1px solid rgba(255,255,255,0.2)",
-                    }} />
-                    {preset.label}
+                  { label: "Blue › Purple",  c1: "#3b82f6", c2: "#8b5cf6" },
+                  { label: "Purple › Pink",  c1: "#8b5cf6", c2: "#ec4899" },
+                  { label: "Blue › Cyan",    c1: "#3b82f6", c2: "#06b6d4" },
+                  { label: "Orange › Red",   c1: "#f97316", c2: "#ef4444" },
+                  { label: "Green › Teal",   c1: "#22c55e", c2: "#14b8a6" },
+                  { label: "Midnight",       c1: "#0f0c29", c2: "#302b63" },
+                  { label: "Sunset",         c1: "#f7971e", c2: "#c71d6f" },
+                  { label: "Ocean",          c1: "#0f2027", c2: "#2c5364" },
+                  { label: "Lava",           c1: "#200122", c2: "#6f0000" },
+                  { label: "Neon",           c1: "#08004a", c2: "#0057ff" },
+                ].map((p) => (
+                  <button key={p.label} onClick={() => update({ bgGradient1: p.c1, bgGradient2: p.c2 })}
+                    style={{ display: "flex", alignItems: "center", gap: 6, padding: "4px 10px", borderRadius: 20, cursor: "pointer", border: "1px solid rgba(255,255,255,0.1)", background: "transparent", color: "rgba(255,255,255,0.7)", fontSize: 11, fontWeight: 600 }}>
+                    <div style={{ width: 12, height: 12, borderRadius: "50%", background: `linear-gradient(135deg, ${p.c1}, ${p.c2})`, border: "1px solid rgba(255,255,255,0.2)" }} />
+                    {p.label}
                   </button>
                 ))}
               </div>
+
+              {/* Saved custom presets */}
+              {(bs.bgGradientPresets ?? []).length > 0 && (
+                <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                  {(bs.bgGradientPresets ?? []).map((p, i) => (
+                    <div key={i} style={{ display: "flex", alignItems: "center", gap: 3 }}>
+                      <button onClick={() => update({ bgGradient1: p.c1, bgGradient2: p.c2, bgGradientStyle: p.style })}
+                        style={{ display: "flex", alignItems: "center", gap: 6, padding: "4px 10px", borderRadius: 20, cursor: "pointer", border: "1px solid rgba(251,113,133,0.3)", background: "rgba(251,113,133,0.08)", color: "#fda4af", fontSize: 11, fontWeight: 600 }}>
+                        <div style={{ width: 12, height: 12, borderRadius: "50%", background: `linear-gradient(135deg, ${p.c1}, ${p.c2})` }} />
+                        {p.name}
+                      </button>
+                      <button onClick={() => update({ bgGradientPresets: (bs.bgGradientPresets ?? []).filter((_, j) => j !== i) })}
+                        style={{ padding: "2px 5px", borderRadius: 5, border: "1px solid rgba(239,68,68,0.3)", background: "rgba(239,68,68,0.08)", color: "#f87171", cursor: "pointer", fontSize: 10 }}>✕</button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <button onClick={() => {
+                const n = (bs.bgGradientPresets ?? []).length + 1;
+                const p = { name: `Custom ${n}`, c1: bs.bgGradient1, c2: bs.bgGradient2, style: bs.bgGradientStyle ?? "Flow" };
+                update({ bgGradientPresets: [...(bs.bgGradientPresets ?? []), p] });
+              }} style={{ padding: "6px 12px", borderRadius: 8, border: "1px dashed rgba(251,113,133,0.4)", background: "rgba(251,113,133,0.05)", color: "#fda4af", fontSize: 11, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: 6, alignSelf: "flex-start" }}>
+                + Save current as preset
+              </button>
 
               <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
                 <ToggleButton
@@ -3130,6 +3195,14 @@ export function ControlRoom({ streams, streamStats, streamChat, streamProcStats 
                     bgGradient1: bs.bgGradient1,
                     bgGradient2: bs.bgGradient2,
                     bgGradientOpacity: bs.bgGradientOpacity,
+                    bgGradientStyle: bs.bgGradientStyle,
+                    bgGradientSpeed: bs.bgGradientSpeed,
+                    bgGradientBlur: bs.bgGradientBlur,
+                    bgGradientBrightness: bs.bgGradientBrightness,
+                    bgGradientSaturation: bs.bgGradientSaturation,
+                    bgGradientRotation: bs.bgGradientRotation,
+                    bgGradientZoom: bs.bgGradientZoom,
+                    bgGradientAnimEnabled: bs.bgGradientAnimEnabled,
                   })}
                   onDeactivate={() => stopOverlay({ bgGradientActive: false })}
                 />
@@ -3137,7 +3210,7 @@ export function ControlRoom({ streams, streamStats, streamChat, streamProcStats 
               </div>
 
               <div style={{ padding: "9px 14px", borderRadius: 8, background: "rgba(251,113,133,0.06)", border: "1px solid rgba(251,113,133,0.15)", fontSize: 11, color: "rgba(255,255,255,0.4)", lineHeight: 1.6 }}>
-                The gradient fills the background pipe behind the video. It is visible in letterbox bars (e.g. when a portrait source is streamed to a landscape output). Break screens always cover the entire frame and take precedence.
+                Gradient sits at the bottom layer — always behind the video. Visible in letterbox bars when a portrait source streams to landscape output, or when the video doesn't fill the frame. Break screens take precedence.
               </div>
             </div>
           )}
