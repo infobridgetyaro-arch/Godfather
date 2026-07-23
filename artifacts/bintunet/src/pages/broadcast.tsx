@@ -2185,7 +2185,7 @@ export default function BroadcastPage() {
     if (state !== null) setConnected(true);
   }, [state]);
 
-  const hasOverlay = state?.newsActive || state?.adActive || state?.breakActive || state?.bgGradientActive || state?.qrActive;
+  const hasOverlay = newsOverlay?.active || state?.newsActive || state?.adActive || state?.breakActive || state?.bgGradientActive || state?.qrActive;
 
   // Transparent bg so it can be used as OBS browser source over a video
   return (
