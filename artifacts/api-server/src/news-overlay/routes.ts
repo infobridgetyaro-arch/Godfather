@@ -4,7 +4,7 @@ import {
 } from "./state-manager.js";
 import {
   activate, deactivate, toggle, updateOverlay, applyThemeFull,
-  addMessage, removeMessage, clearMessages, addBreaking, clearBreaking,
+  addMessage, removeMessage, clearMessages, updateMessage, addBreaking, clearBreaking,
   updateTickerConfig, getCapabilities,
 } from "./overlay-manager.js";
 import {
@@ -121,6 +121,17 @@ router.post("/ticker/messages", (req: Request, res: Response): void => {
   }
   const msg = addMessage(text.trim(), priority ?? 0, expiresInMs);
   res.status(201).json(msg);
+});
+
+// ── PATCH /api/news-overlay/ticker/messages/:id ──────────────────────────────
+router.patch("/ticker/messages/:id", (req: Request, res: Response): void => {
+  const { text, priority } = req.body as { text?: string; priority?: number };
+  if (!text || typeof text !== "string") {
+    res.status(400).json({ error: "text is required" }); return;
+  }
+  const ok = updateMessage(String(req.params.id), text.trim(), priority);
+  if (!ok) { res.status(404).json({ error: "Message not found" }); return; }
+  res.json({ ok: true });
 });
 
 // ── DELETE /api/news-overlay/ticker/messages ─────────────────────────────────

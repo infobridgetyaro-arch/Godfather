@@ -35,10 +35,11 @@ export function removeTickerMessage(id: string): boolean {
   return _messages.length < before;
 }
 
-export function updateTickerMessage(id: string, text: string): boolean {
+export function updateTickerMessage(id: string, text: string, priority?: number): boolean {
   const m = _messages.find(m => m.id === id);
   if (!m) return false;
   m.text = text.trim();
+  if (priority !== undefined) m.priority = priority;
   return true;
 }
 

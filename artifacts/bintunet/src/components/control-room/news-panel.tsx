@@ -447,6 +447,79 @@ function Slider({ value, min, max, onChange, label, accent = "#667eea" }: {
   );
 }
 
+// ── Inline-editable ticker message row ────────────────────────────────────────
+
+function TickerMessageRow({ msg, accent, onUpdate, onDelete }: {
+  msg: TickerMessage;
+  accent: string;
+  onUpdate: (text: string, priority: number) => Promise<void>;
+  onDelete: () => Promise<void>;
+}) {
+  const [draft, setDraft] = useState(msg.text);
+  const [priority, setPriority] = useState(msg.priority);
+  const [saving, setSaving] = useState(false);
+
+  // Keep local draft in sync if parent state refreshes and we're not mid-edit
+  useEffect(() => { setDraft(msg.text); setPriority(msg.priority); }, [msg.text, msg.priority]);
+
+  const save = async (text: string, pri: number) => {
+    const trimmed = text.trim();
+    if (!trimmed || (trimmed === msg.text && pri === msg.priority)) return;
+    setSaving(true);
+    try { await onUpdate(trimmed, pri); } finally { setSaving(false); }
+  };
+
+  const priorityColor = priority >= 100 ? "#ef4444" : priority > 0 ? "#f59e0b" : accent;
+
+  return (
+    <div style={{
+      display: "flex", alignItems: "center", gap: 6,
+      padding: "5px 8px", borderRadius: 7,
+      background: saving ? "rgba(102,126,234,0.08)" : "rgba(255,255,255,0.04)",
+      border: `1px solid ${saving ? "rgba(102,126,234,0.3)" : "rgba(255,255,255,0.06)"}`,
+      transition: "background 0.15s, border-color 0.15s",
+    }}>
+      {/* Priority badge / dropdown */}
+      <select
+        value={priority}
+        onChange={e => {
+          const p = Number(e.target.value);
+          setPriority(p);
+          save(draft, p);
+        }}
+        style={{
+          background: `${priorityColor}22`, border: `1px solid ${priorityColor}55`,
+          borderRadius: 4, color: priorityColor, fontSize: 9, fontWeight: 700,
+          padding: "1px 4px", cursor: "pointer", flexShrink: 0, outline: "none",
+        }}
+      >
+        <option value={0}>NORMAL</option>
+        <option value={50}>HIGH</option>
+        <option value={100}>BREAKING</option>
+      </select>
+
+      {/* Editable text */}
+      <input
+        value={draft}
+        onChange={e => setDraft(e.target.value)}
+        onBlur={() => save(draft, priority)}
+        onKeyDown={e => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }}
+        style={{
+          flex: 1, background: "transparent", border: "none", outline: "none",
+          color: "rgba(255,255,255,0.82)", fontSize: 11,
+          padding: "0 2px", minWidth: 0,
+        }}
+      />
+
+      {/* Delete */}
+      <button
+        onClick={onDelete}
+        style={{ fontSize: 10, color: "#f87171", background: "none", border: "none", cursor: "pointer", padding: "2px 4px", flexShrink: 0 }}
+      >✕</button>
+    </div>
+  );
+}
+
 // ── Motion style option ────────────────────────────────────────────────────────
 
 const TICKER_MOTIONS: { value: TickerMotion; icon: string; desc: string }[] = [
@@ -625,13 +698,16 @@ export function NewsPanel({ activeStreamCount }: { activeStreamCount: number }) 
                 </div>
               )}
               {state.tickerMessages.map(msg => (
-                <div key={msg.id} style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 10px", borderRadius: 7, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.06)" }}>
-                  {msg.priority >= 100 && <span style={{ fontSize: 9, background: "#ef4444", color: "#fff", padding: "1px 5px", borderRadius: 4, flexShrink: 0, fontWeight: 700 }}>BREAKING</span>}
-                  {msg.priority > 0 && msg.priority < 100 && <span style={{ fontSize: 9, background: "#f59e0b", color: "#000", padding: "1px 5px", borderRadius: 4, flexShrink: 0, fontWeight: 700 }}>P{msg.priority}</span>}
-                  <span style={{ flex: 1, fontSize: 11, color: "rgba(255,255,255,0.72)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{msg.text}</span>
-                  <button onClick={async () => { await apiDelete(`/ticker/messages/${msg.id}`); apiFetch("").then(setState); }}
-                    style={{ fontSize: 10, color: "#f87171", background: "none", border: "none", cursor: "pointer", padding: "2px 4px", flexShrink: 0 }}>✕</button>
-                </div>
+                <TickerMessageRow
+                  key={msg.id}
+                  msg={msg}
+                  accent={accent}
+                  onUpdate={async (text, priority) => {
+                    await apiFetch(`/ticker/messages/${msg.id}`, { method: "PATCH", body: JSON.stringify({ text, priority }) });
+                    apiFetch("").then(setState);
+                  }}
+                  onDelete={async () => { await apiDelete(`/ticker/messages/${msg.id}`); apiFetch("").then(setState); }}
+                />
               ))}
             </div>
             <div style={{ display: "flex", gap: 6 }}>

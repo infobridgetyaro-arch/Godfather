@@ -5,6 +5,7 @@ import {
 import {
   addTickerMessage, removeTickerMessage, clearTickerMessages,
   getTickerMessages, addBreakingNewsMessage, pruneExpired,
+  updateTickerMessage,
 } from "./ticker-manager.js";
 import {
   createWidget, listWidgetTypes, startClockWidgets, stopClockWidgets,
@@ -208,6 +209,16 @@ export function clearMessages(): void {
   emitTickerEvent();
   emitState();
   if (getState().active) pushToStreamRenderers();
+}
+
+export function updateMessage(id: string, text: string, priority?: number): boolean {
+  const ok = updateTickerMessage(id, text, priority);
+  if (ok) {
+    emitTickerEvent();
+    emitState();
+    if (getState().active) pushToStreamRenderers();
+  }
+  return ok;
 }
 
 export function addBreaking(text: string) {
