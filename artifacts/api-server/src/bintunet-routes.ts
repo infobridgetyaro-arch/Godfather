@@ -2051,6 +2051,8 @@ export async function registerBintunetRoutes(
     if (ws.readyState === ws.OPEN) {
       // Send current broadcast state so stage page syncs instantly
       ws.send(JSON.stringify({ type: "broadcast", streamId: null, data: broadcastState }));
+      // Send current news-overlay state — broadcast page needs this without auth
+      try { ws.send(JSON.stringify({ type: "news-overlay", data: getNewsOverlayState() })); } catch {}
       // Replay buffered logs for all active streams so a page-refresh doesn't lose history
       for (const [streamId, lines] of getStreamLogBuffers()) {
         for (const data of lines) {
@@ -2816,6 +2818,10 @@ export async function registerBintunetRoutes(
   // Pass updateStreamOverlays so the news overlay API can push directly into the
   // canvas renderer (pipe:4 → FFmpeg) when activated — not just to browser WS clients.
   initNewsOverlay(broadcastGlobal, (patch) => updateStreamOverlays(patch as Parameters<typeof updateStreamOverlays>[0]));
+  // Public read — broadcast page is an unauthenticated OBS browser source that needs
+  // the overlay state to render correctly. Writes (PATCH/POST/DELETE) go through the
+  // router which is still protected by requireAuth.
+  app.get("/api/news-overlay", (_req, res) => res.json(getNewsOverlayState()));
   app.use("/api/news-overlay", requireAuth, newsOverlayRouter);
 
   // ── Sections module ────────────────────────────────────────────────────────
