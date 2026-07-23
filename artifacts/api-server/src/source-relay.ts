@@ -111,8 +111,12 @@ function spawnCollect(
  * Exponential backoff schedule (ms) for consecutive NETWORK / SOURCE failures.
  * ±10% jitter is applied at runtime to prevent synchronized reconnect storms.
  * Config errors (bad flags, ENOENT) do NOT use this — they fail permanently.
+ *
+ * The first two slots are near-zero so that brief CDN hiccups and normal
+ * HLS segment gaps reconnect in milliseconds — invisible to viewers.
+ * Longer delays only kick in after sustained, repeated failures.
  */
-const BACKOFF_MS = [1_000, 2_000, 4_000, 8_000, 15_000, 30_000, 60_000];
+const BACKOFF_MS = [0, 100, 500, 2_000, 8_000, 30_000, 60_000];
 
 /**
  * How many HTTP 403 errors must appear in yt-dlp stderr (within a single
@@ -1702,11 +1706,12 @@ export class SourceRelay {
     // ── Exponential backoff with jitter ───────────────────────────────────────
     const baseDelay = BACKOFF_MS[Math.min(this.consecutiveFailures - 1, BACKOFF_MS.length - 1)];
     const jitter = baseDelay * 0.1 * (Math.random() * 2 - 1); // ±10%
-    const delay = Math.max(250, Math.round(baseDelay + jitter));
+    const delay = Math.max(0, Math.round(baseDelay + jitter));
 
+    const delayLabel = delay < 1_000 ? `${delay}ms` : `${Math.round(delay / 1000)}s`;
     this._warn(
       `[relay] Source failed (consecutive=${this.consecutiveFailures}) — ` +
-      `auto-reconnecting in ${Math.round(delay / 1000)}s`,
+      `auto-reconnecting in ${delayLabel}`,
     );
     this._setStatus("reconnecting");
 
