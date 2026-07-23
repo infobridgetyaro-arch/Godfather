@@ -265,248 +265,106 @@ function resolveVariant(
 // ── LivePreview ────────────────────────────────────────────────────────────────
 
 function LivePreview({ state }: { state: NewsOverlayState }) {
-  const accent = state.customColors.primary;
-  const tickerText = state.tickerMessages.map(m => m.text).join("   ◆   ") || state.headline.text || "Preview headline…";
-  const speed = state.ticker.speed;
-  const variant = state.overlayVariant ?? "broadcast";
-  const colorMode = state.colorMode ?? "dark";
-  const gradientEnabled = state.gradientEnabled ?? false;
-  const gradientColors = state.gradientColors ?? [accent, state.customColors.secondary];
+  const accent   = state.customColors.primary;
+  const bg       = state.customColors.background;
+  const textCol  = state.customColors.text;
+  const tickerText = state.tickerMessages.map(m => m.text).join("   ◆   ") || state.headline.text || "";
+  const speed    = state.ticker.speed;
   const animPreset = state.headline.animation ?? "Fade";
+  const isBreaking = state.breakingNews.active;
+  const subheadline = (state.headline.headlines ?? [])[1] ?? "";
 
-  const vStyle = resolveVariant(variant, colorMode, accent, gradientEnabled, gradientColors);
-  const bg = gradientEnabled
-    ? `linear-gradient(90deg, ${gradientColors[0]}, ${gradientColors[1]})`
-    : state.customColors.background;
-
-  // Each theme renders its base visual — variant wrapperStyle is overlaid
-  const themes: Record<ThemeName, React.ReactNode> = {
-
-    "CNN": (
-      <div style={{ display: "flex", alignItems: "stretch", height: 52, background: variant !== "glass" ? bg : undefined, borderTop: `4px solid ${accent}`, boxShadow: `0 -4px 20px ${accent}55`, fontFamily: '"Arial Black", Impact, system-ui, sans-serif' }}>
-        <div style={{ background: accent, display: "flex", alignItems: "center", padding: "0 14px", flexShrink: 0, minWidth: 60, gap: 6 }}>
-          {state.logo
-            ? <img src={state.logo} alt="" style={{ height: 24, maxWidth: 56, objectFit: "contain" }} />
-            : <span style={{ color: "#fff", fontWeight: 900, fontSize: 15, letterSpacing: "0.04em", textShadow: "0 1px 3px rgba(0,0,0,0.5)" }}>CNN</span>}
-        </div>
-        <div style={{ width: 3, background: `linear-gradient(180deg, ${accent}ff, ${accent}44)`, flexShrink: 0 }} />
-        <div style={{ flex: 1, display: "flex", alignItems: "center", gap: 10, padding: "0 10px", minWidth: 0 }}>
-          <span style={{ color: accent, fontWeight: 900, fontSize: 9, letterSpacing: "0.14em", flexShrink: 0, textTransform: "uppercase" }}>⚡ BREAKING</span>
-          <TickerScroll text={tickerText} speed={speed} color={vStyle.textColor} fontWeight={700} fontSize={13} />
-        </div>
-      </div>
-    ),
-
-    "BBC": (
-      <div style={{ display: "flex", alignItems: "stretch", height: 52, background: variant !== "glass" ? bg : undefined, fontFamily: "Georgia, serif" }}>
-        <div style={{ background: `linear-gradient(135deg, ${accent}, ${state.customColors.secondary})`, display: "flex", alignItems: "center", justifyContent: "center", padding: "0 16px", flexShrink: 0, minWidth: 70, boxShadow: `4px 0 16px ${accent}44` }}>
-          {state.logo
-            ? <img src={state.logo} alt="" style={{ height: 26, maxWidth: 60, objectFit: "contain" }} />
-            : <span style={{ color: "#fff", fontWeight: 900, fontSize: 15, letterSpacing: "0.04em" }}>BBC</span>}
-        </div>
-        <div style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "center", padding: "0 14px", gap: 2, overflow: "hidden" }}>
-          <div style={{ fontSize: 8, color: accent, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.12em", fontFamily: "system-ui" }}>Live Coverage</div>
-          <TickerScroll text={tickerText} speed={speed} color={vStyle.textColor} fontWeight={700} fontSize={13} separator="  ·  " />
-        </div>
-      </div>
-    ),
-
-    "Bloomberg": (
-      <div style={{ display: "flex", alignItems: "stretch", height: 46, background: variant !== "glass" ? bg : undefined, borderTop: `2px solid ${accent}`, fontFamily: '"IBM Plex Mono", "Courier New", monospace' }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "0 14px", flexShrink: 0, borderRight: `1px solid ${accent}44` }}>
-          {state.logo
-            ? <img src={state.logo} alt="" style={{ height: 22, maxWidth: 56, objectFit: "contain" }} />
-            : <>
-              <div style={{ width: 7, height: 7, background: accent, borderRadius: 1 }} />
-              <span style={{ color: accent, fontWeight: 700, fontSize: 11, letterSpacing: "0.06em" }}>{state.liveBadge.label || "MARKETS"}</span>
-            </>}
-        </div>
-        <TickerScroll text={tickerText} speed={speed} color={vStyle.textColor} fontWeight={500} fontSize={12} separator="  |  " />
-        <div style={{ display: "flex", alignItems: "center", padding: "0 12px", flexShrink: 0, borderLeft: `1px solid ${accent}33`, gap: 6 }}>
-          <span style={{ color: "#4ade80", fontSize: 9, fontWeight: 700 }}>▲ +0.42%</span>
-        </div>
-      </div>
-    ),
-
-    "Fox": (
-      <div style={{ display: "flex", alignItems: "stretch", height: 50, background: variant !== "glass" ? bg : undefined, borderTop: `4px solid ${accent}`, fontFamily: '"Arial Black", Impact, system-ui, sans-serif' }}>
-        <div style={{ background: accent, display: "flex", alignItems: "center", padding: "0 14px", flexShrink: 0, boxShadow: `4px 0 20px ${accent}55` }}>
-          {state.logo
-            ? <img src={state.logo} alt="" style={{ height: 24, maxWidth: 56, objectFit: "contain" }} />
-            : <span style={{ color: "#fff", fontWeight: 900, fontSize: 11, letterSpacing: "0.08em", textTransform: "uppercase" }}>FOX NEWS ALERT</span>}
-        </div>
-        <div style={{ width: 4, background: `linear-gradient(180deg, #ffffff44, transparent)`, flexShrink: 0 }} />
-        <TickerScroll text={tickerText} speed={speed} color={vStyle.textColor} fontWeight={800} fontSize={13} />
-      </div>
-    ),
-
-    "Sky News": (
-      <div style={{ display: "flex", alignItems: "stretch", height: 50, background: variant !== "glass" ? bg : undefined }}>
-        <div style={{ background: `linear-gradient(145deg, ${accent}, ${state.customColors.secondary})`, display: "flex", alignItems: "center", justifyContent: "center", padding: "0 16px", flexShrink: 0, minWidth: 88, boxShadow: `6px 0 24px ${accent}44` }}>
-          {state.logo
-            ? <img src={state.logo} alt="" style={{ height: 24, maxWidth: 60, objectFit: "contain" }} />
-            : <span style={{ color: "#fff", fontWeight: 900, fontSize: 12, letterSpacing: "0.06em", textAlign: "center" }}>SKY{"\n"}NEWS</span>}
-        </div>
-        <div style={{ flex: 1, display: "flex", alignItems: "center", borderTop: `3px solid ${accent}`, padding: "0 6px" }}>
-          <TickerScroll text={tickerText} speed={speed} color={vStyle.textColor} fontWeight={600} fontSize={13} />
-        </div>
-      </div>
-    ),
-
-    "Al Jazeera": (
-      <div style={{ display: "flex", alignItems: "stretch", height: 50, background: variant !== "glass" ? bg : undefined, borderTop: `3px solid ${accent}`, boxShadow: `0 -3px 16px ${accent}44` }}>
-        <div style={{ display: "flex", alignItems: "center", padding: "0 12px", gap: 8, flexShrink: 0, borderRight: "1px solid rgba(255,255,255,0.10)", minWidth: 72, justifyContent: "center" }}>
-          {state.logo
-            ? <img src={state.logo} alt="" style={{ height: 26, maxWidth: 54, objectFit: "contain" }} />
-            : <span style={{ fontSize: 10, fontWeight: 900, color: "#fff", letterSpacing: "0.06em" }}>aljaz.</span>}
-        </div>
-        <div style={{ background: accent, display: "flex", alignItems: "center", padding: "0 10px", gap: 6, flexShrink: 0, boxShadow: `3px 0 14px ${accent}55` }}>
-          <div style={{ width: 6, height: 6, borderRadius: "50%", background: "#fff", boxShadow: "0 0 6px rgba(255,255,255,0.8)" }} />
-          <span style={{ color: "#fff", fontWeight: 900, fontSize: 9, letterSpacing: "0.1em" }}>LIVE</span>
-        </div>
-        <TickerScroll text={tickerText} speed={speed} color={vStyle.textColor} fontWeight={600} fontSize={13} />
-      </div>
-    ),
-
-    "CNBC": (
-      <div style={{ display: "flex", alignItems: "stretch", height: 48, background: variant !== "glass" ? bg : undefined, borderTop: `3px solid ${accent}`, fontFamily: '"Helvetica Neue", Helvetica, Arial, sans-serif' }}>
-        <div style={{ background: accent, display: "flex", alignItems: "center", padding: "0 16px", flexShrink: 0, boxShadow: `4px 0 18px ${accent}55` }}>
-          {state.logo
-            ? <img src={state.logo} alt="" style={{ height: 22, maxWidth: 56, objectFit: "contain" }} />
-            : <span style={{ color: "#fff", fontWeight: 900, fontSize: 13, letterSpacing: "0.04em" }}>CNBC</span>}
-        </div>
-        <div style={{ display: "flex", alignItems: "center", padding: "0 10px", flexShrink: 0, borderRight: `1px solid ${accent}44` }}>
-          <span style={{ color: "#4ade80", fontSize: 10, fontWeight: 700, letterSpacing: "0.04em" }}>▲ MARKETS</span>
-        </div>
-        <TickerScroll text={tickerText} speed={speed} color={vStyle.textColor} fontWeight={600} fontSize={13} />
-      </div>
-    ),
-
-    "Dark": (
-      <div style={{
-        display: "flex", alignItems: "stretch", height: 48,
-        background: variant !== "glass" ? (gradientEnabled ? `linear-gradient(90deg, ${gradientColors[0]}, ${gradientColors[1]})` : bg) : undefined,
-        border: `1px solid ${accent}55`, borderRadius: variant === "glass" ? 0 : 6,
-        overflow: "hidden", boxShadow: `0 0 24px ${accent}25, inset 0 1px 0 rgba(255,255,255,0.06)`,
-      }}>
-        <div style={{ background: `${accent}20`, display: "flex", alignItems: "center", padding: "0 14px", flexShrink: 0, borderRight: `1px solid ${accent}33`, gap: 8 }}>
-          {state.logo
-            ? <img src={state.logo} alt="" style={{ height: 22, maxWidth: 52, objectFit: "contain" }} />
-            : <>
-              <div style={{ width: 7, height: 7, borderRadius: "50%", background: accent, boxShadow: `0 0 8px ${accent}` }} />
-              <span style={{ color: accent, fontWeight: 700, fontSize: 10, letterSpacing: "0.1em" }}>{state.liveBadge.label || "LIVE"}</span>
-            </>}
-        </div>
-        <TickerScroll text={tickerText} speed={speed} color={vStyle.textColor} fontWeight={600} fontSize={13} />
-      </div>
-    ),
-
-    "Glass": (
-      <div style={{
-        display: "flex", alignItems: "stretch", height: 48,
-        background: "rgba(255,255,255,0.07)",
-        backdropFilter: "blur(28px) saturate(200%)",
-        WebkitBackdropFilter: "blur(28px) saturate(200%)",
-        border: "1px solid rgba(255,255,255,0.16)",
-        borderRadius: 10, overflow: "hidden",
-        boxShadow: "0 8px 32px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.14)",
-      }}>
-        <div style={{ display: "flex", alignItems: "center", padding: "0 14px", flexShrink: 0, borderRight: "1px solid rgba(255,255,255,0.10)", gap: 8 }}>
-          {state.logo
-            ? <img src={state.logo} alt="" style={{ height: 22, maxWidth: 52, objectFit: "contain" }} />
-            : <span style={{ color: "#fff", fontWeight: 800, fontSize: 11, letterSpacing: "0.06em" }}>{state.liveBadge.label || "LIVE"}</span>}
-        </div>
-        <div style={{ width: 3, background: `linear-gradient(180deg, ${accent}, ${accent}55)`, flexShrink: 0 }} />
-        <TickerScroll text={tickerText} speed={speed} color="rgba(255,255,255,0.95)" fontWeight={600} fontSize={13} />
-        <div style={{ display: "flex", alignItems: "center", padding: "0 14px", flexShrink: 0, borderLeft: "1px solid rgba(255,255,255,0.08)" }}>
-          <div style={{ width: 7, height: 7, borderRadius: "50%", background: accent, boxShadow: `0 0 10px ${accent}` }} />
-        </div>
-      </div>
-    ),
-
-    "Modern": (
-      <div style={{
-        display: "flex", alignItems: "stretch", height: 48,
-        background: variant !== "glass" ? bg : undefined,
-        borderTop: `2px solid ${accent}`,
-        boxShadow: `0 -4px 20px ${accent}40`,
-        fontFamily: '"IBM Plex Mono", "Courier New", monospace',
-      }}>
-        <div style={{ display: "flex", alignItems: "center", padding: "0 14px", flexShrink: 0, borderRight: `1px solid ${accent}30`, gap: 6 }}>
-          {state.logo
-            ? <img src={state.logo} alt="" style={{ height: 22, maxWidth: 52, objectFit: "contain" }} />
-            : <>
-              <span style={{ color: accent, fontWeight: 900, fontSize: 9, letterSpacing: "0.14em", textTransform: "uppercase", textShadow: `0 0 10px ${accent}` }}>●{state.liveBadge.label || "WIRE"}</span>
-            </>}
-        </div>
-        <div style={{ flex: 1, display: "flex", alignItems: "center", minWidth: 0 }}>
-          <TickerScroll text={tickerText} speed={speed} color={accent} fontWeight={600} fontSize={12} separator="  ░  " />
-        </div>
-        <div style={{ display: "flex", alignItems: "center", padding: "0 12px", flexShrink: 0, borderLeft: `1px solid ${accent}30` }}>
-          <span style={{ color: `${accent}88`, fontSize: 9, fontFamily: "monospace" }}>4K●REC</span>
-        </div>
-      </div>
-    ),
-
-    "Minimal": (
-      <div style={{
-        display: "flex", alignItems: "center", height: 42,
-        background: variant !== "glass" ? bg : undefined,
-        borderTop: "1px solid rgba(255,255,255,0.08)",
-        gap: 0, fontFamily: "system-ui, -apple-system, sans-serif",
-      }}>
-        {state.liveBadge.visible && (
-          <div style={{ display: "flex", alignItems: "center", padding: "0 16px", flexShrink: 0, gap: 6, borderRight: "1px solid rgba(255,255,255,0.08)", height: "100%" }}>
-            <div style={{ width: 5, height: 5, borderRadius: "50%", background: accent, opacity: 0.8 }} />
-            <span style={{ color: "rgba(255,255,255,0.38)", fontSize: 9, fontWeight: 500, letterSpacing: "0.12em", textTransform: "uppercase" }}>{state.liveBadge.label || "LIVE"}</span>
-          </div>
-        )}
-        <TickerScroll text={tickerText} speed={speed} color="rgba(255,255,255,0.88)" fontWeight={400} fontSize={13} separator="   ·   " />
-      </div>
-    ),
-
-    "Election": (
-      <div style={{
-        display: "flex", alignItems: "stretch", height: 54,
-        background: variant !== "glass" ? (gradientEnabled ? `linear-gradient(90deg, ${gradientColors[0]}, ${gradientColors[1]})` : bg) : undefined,
-        borderTop: `4px solid ${accent}`,
-        boxShadow: `0 -6px 28px ${accent}55`,
-        fontFamily: '"Arial Black", Impact, system-ui, sans-serif',
-      }}>
-        <div style={{ background: accent, display: "flex", alignItems: "center", padding: "0 16px", flexShrink: 0, gap: 8, boxShadow: `4px 0 20px ${accent}66` }}>
-          {state.logo
-            ? <img src={state.logo} alt="" style={{ height: 26, maxWidth: 56, objectFit: "contain" }} />
-            : <span style={{ color: "#fff", fontWeight: 900, fontSize: 9, letterSpacing: "0.14em", textTransform: "uppercase", lineHeight: 1.2, textAlign: "center" }}>ELECTION{"\n"}NIGHT</span>}
-        </div>
-        <div style={{ width: 4, background: `linear-gradient(180deg, ${state.customColors.secondary}cc, ${state.customColors.secondary}44)`, flexShrink: 0 }} />
-        <TickerScroll text={tickerText} speed={speed} color={vStyle.textColor} fontWeight={800} fontSize={13} separator="  ★  " />
-      </div>
-    ),
-  };
-
-  // Apply variant wrapper — glass and flat override the outer shell
-  const themeNode = themes[state.theme] ?? themes["Al Jazeera"];
+  const [time, setTime] = useState(() =>
+    new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" })
+  );
+  useEffect(() => {
+    const t = setInterval(() =>
+      setTime(new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" })), 1000);
+    return () => clearInterval(t);
+  }, []);
 
   return (
-    <div style={{ borderRadius: 10, overflow: "hidden", border: "1px solid rgba(255,255,255,0.08)", background: "#0a0a14" }}>
-      <style>{MOTION_ENGINE_KEYFRAMES}</style>
+    <div style={{ borderRadius: 10, overflow: "hidden", border: "1px solid rgba(255,255,255,0.08)", background: "#06060f" }}>
+      <style>{MOTION_ENGINE_KEYFRAMES + `
+        @keyframes lp-badge-pulse { 0%,100%{opacity:1} 50%{opacity:0.25} }
+      `}</style>
 
       {/* Preview label */}
       <div style={{ padding: "5px 10px", fontSize: 9, color: "rgba(255,255,255,0.28)", textTransform: "uppercase", letterSpacing: "0.1em", background: "rgba(255,255,255,0.025)", borderBottom: "1px solid rgba(255,255,255,0.05)", display: "flex", gap: 8, alignItems: "center" }}>
         <span>Preview — {state.theme}</span>
-        <span style={{ opacity: 0.5 }}>·</span>
-        <span style={{ color: "rgba(102,126,234,0.7)" }}>{variant}</span>
-        <span style={{ opacity: 0.5 }}>·</span>
-        <span style={{ color: "rgba(255,255,255,0.2)" }}>{colorMode}</span>
         {state.active && <span style={{ color: "#4ade80", marginLeft: "auto" }}>● ACTIVE</span>}
       </div>
 
-      {/* Theme render with shared Motion Engine applied */}
-      <div
-        key={`${state.theme}|${variant}|${colorMode}|${animPreset}|${state.headline.currentIndex}`}
-        style={{ ...vStyle.wrapperStyle, animation: MOTION_ENGINE[animPreset] ?? "" }}
-      >
-        {themeNode}
+      {/* Universal broadcast card with entrance animation */}
+      <div style={{ padding: "14px", background: "#0a0a16" }}>
+        <div
+          key={`${state.theme}|${animPreset}|${state.headline.currentIndex}`}
+          style={{ animation: MOTION_ENGINE[animPreset] ?? "" }}
+        >
+          {/* ── Card shell ── */}
+          <div style={{
+            background: bg,
+            borderRadius: 6,
+            overflow: "hidden",
+            boxShadow: `0 10px 48px rgba(0,0,0,0.7), 0 0 0 1px rgba(255,255,255,0.05)`,
+            position: "relative",
+          }}>
+            {/* Left accent stripe */}
+            <div style={{ position: "absolute", top: 0, left: 0, bottom: 0, width: 4, background: `linear-gradient(180deg, ${accent}, ${accent}cc)`, boxShadow: `3px 0 18px ${accent}55`, zIndex: 1 }} />
+            {/* Top glow line */}
+            <div style={{ position: "absolute", top: 0, left: 4, right: 0, height: 1, background: `linear-gradient(90deg, ${accent}dd, ${accent}55, transparent 55%)`, zIndex: 1 }} />
+
+            <div style={{ paddingLeft: 4 }}>
+              {/* ── TOP BAR ── */}
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "7px 14px", borderBottom: "1px solid rgba(255,255,255,0.07)", minHeight: 32 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                  {state.liveBadge.visible && (
+                    <div style={{ display: "flex", alignItems: "center", gap: 4, padding: "3px 9px 3px 7px", borderRadius: 3, background: accent, boxShadow: `0 2px 12px ${accent}66`, flexShrink: 0 }}>
+                      <div style={{ width: 5, height: 5, borderRadius: "50%", background: "#fff", animation: "lp-badge-pulse 1.2s ease-in-out infinite" }} />
+                      <span style={{ color: "#fff", fontWeight: 900, fontSize: 9, letterSpacing: "0.13em", fontFamily: "'Arial Black', Impact, sans-serif", lineHeight: 1 }}>{state.liveBadge.label || "LIVE"}</span>
+                    </div>
+                  )}
+                  {isBreaking && (
+                    <span style={{ color: accent, fontWeight: 800, fontSize: 9, letterSpacing: "0.09em", textTransform: "uppercase", flexShrink: 0 }}>⚡ {state.breakingNews.text || "BREAKING"}</span>
+                  )}
+                  {(state.liveBadge.visible || isBreaking) && state.logo && (
+                    <div style={{ width: 1, height: 14, background: "rgba(255,255,255,0.15)", flexShrink: 0 }} />
+                  )}
+                  {state.logo && <img src={state.logo} alt="" style={{ height: 18, maxWidth: 80, objectFit: "contain", opacity: 0.92 }} />}
+                </div>
+                <span style={{ color: "rgba(255,255,255,0.26)", fontSize: 10, fontFamily: "'Courier New', monospace", letterSpacing: "0.06em", flexShrink: 0 }}>{time}</span>
+              </div>
+
+              {/* ── MAIN AREA ── */}
+              <div style={{ padding: `12px 14px ${tickerText ? "8px" : "14px"}` }}>
+                {state.headline.text ? (
+                  <>
+                    <div style={{ color: textCol, fontWeight: 800, fontSize: 20, lineHeight: 1.18, letterSpacing: "-0.02em", fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", textShadow: "0 1px 6px rgba(0,0,0,0.6)" }}>
+                      {state.headline.text}
+                    </div>
+                    {subheadline && (
+                      <div style={{ color: `${textCol}88`, fontWeight: 500, fontSize: 13, lineHeight: 1.35, marginTop: 5, fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif" }}>
+                        {subheadline}
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <div style={{ color: "rgba(255,255,255,0.18)", fontSize: 15, fontStyle: "italic", fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif" }}>
+                    Headline goes here…
+                  </div>
+                )}
+              </div>
+
+              {/* ── BOTTOM TICKER STRIP ── */}
+              {tickerText && (
+                <div style={{ display: "flex", alignItems: "center", padding: "0 14px", height: 26, borderTop: "1px solid rgba(255,255,255,0.06)", background: "rgba(0,0,0,0.26)", gap: 8 }}>
+                  <div style={{ width: 2, height: 11, background: accent, opacity: 0.65, borderRadius: 1, flexShrink: 0 }} />
+                  <TickerScroll text={tickerText} speed={speed} color={`${textCol}77`} fontSize={11} fontWeight={500} separator="   ◆   " />
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );
