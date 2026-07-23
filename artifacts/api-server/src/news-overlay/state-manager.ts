@@ -37,6 +37,12 @@ export function buildDefaultState(): NewsOverlayState {
     customShadow: { enabled: false, color: "rgba(0,0,0,0.5)", blur: 0, x: 0, y: 0 },
     opacity: 1,
 
+    overlayVariant: "broadcast",
+    colorMode: "dark",
+    gradientEnabled: false,
+    gradientColors: ["#d00000", "#600000"],
+    tickerMotion: "Scroll",
+
     layout: { position: { x: 0, y: 95 }, width: 0, height: 0, zIndex: 30, scale: 100 },
 
     logo: "",
@@ -103,6 +109,7 @@ export function applyTheme(themeName: NewsOverlayState["theme"]): NewsOverlaySta
     opacity: theme.opacity,
     ticker: { ..._state.ticker, style: theme.tickerStyle },
     liveBadge: { ..._state.liveBadge, color: theme.colors.badge, label: theme.badgeLabel },
+    gradientColors: theme.gradientColors,
   });
 }
 

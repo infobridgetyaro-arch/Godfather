@@ -11,6 +11,16 @@ export type AnimationPreset =
   | "Fade" | "Zoom" | "Elastic" | "Bounce" | "Flip"
   | "Typewriter" | "Blur" | "Glitch" | "Pulse" | "Flash";
 
+/** Overlay surface style — applied on top of the chosen theme. */
+export type OverlayVariant = "glass" | "flat" | "broadcast";
+
+/** Light / dark colour mode for the overlay. */
+export type ColorMode = "dark" | "light";
+
+/** How the ticker text moves. Shared by all themes. */
+export type TickerMotion =
+  | "Scroll" | "Stationary" | "Flap" | "Typewriter" | "Wave" | "Carousel";
+
 export type TickerDirection = "left" | "right";
 
 export type WidgetType =
@@ -72,6 +82,8 @@ export interface ThemeDefinition {
   tickerStyle: TickerStyle;
   spacing: number;        // px gap between elements
   badgeLabel: string;
+  /** Preset gradient colours [from, to] for this theme. */
+  gradientColors: [string, string];
 }
 
 export interface TickerMessage {
@@ -128,11 +140,17 @@ export interface NewsOverlayState {
 
   // ── Theme ──────────────────────────────────────────────────────────────────
   theme: ThemeName;
+  overlayVariant: OverlayVariant;
+  colorMode: ColorMode;
   customColors: ColorSettings;
   customFont: FontSettings;
   customBorder: BorderSettings;
   customShadow: ShadowSettings;
   opacity: number;
+
+  // ── Gradient ───────────────────────────────────────────────────────────────
+  gradientEnabled: boolean;
+  gradientColors: [string, string];
 
   // ── Layout ─────────────────────────────────────────────────────────────────
   layout: NewsOverlayLayout;
@@ -153,6 +171,10 @@ export interface NewsOverlayState {
   // ── Ticker ───────────────────────────────────────────────────────────────────
   ticker: TickerConfig;
   tickerMessages: TickerMessage[];
+
+  // ── Motion Engine ─────────────────────────────────────────────────────────
+  /** How the ticker text moves — shared across all themes. */
+  tickerMotion: TickerMotion;
 
   // ── Widgets ──────────────────────────────────────────────────────────────────
   widgets: WidgetConfig[];

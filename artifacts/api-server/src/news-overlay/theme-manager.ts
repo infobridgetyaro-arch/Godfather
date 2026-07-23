@@ -1,141 +1,268 @@
 import type { ThemeDefinition, ThemeName, ColorSettings, FontSettings, BorderSettings, ShadowSettings } from "./types.js";
 
-const BASE_FONT: FontSettings = { family: "Arial, sans-serif", size: 14, weight: 600, letterSpacing: 0.02 };
+// ── Font stacks ───────────────────────────────────────────────────────────────
+
+const SYSTEM_SANS = "system-ui, -apple-system, 'Segoe UI', sans-serif";
+const IMPACT_STACK = "'Arial Black', Impact, 'Haettenschweiler', sans-serif";
+const MONO_STACK = "'IBM Plex Mono', 'Courier New', Courier, monospace";
+const SERIF_STACK = "Georgia, 'Times New Roman', serif";
+const HELVETICA_STACK = "'Helvetica Neue', Helvetica, Arial, sans-serif";
+
 const NO_SHADOW: ShadowSettings = { enabled: false, color: "rgba(0,0,0,0.5)", blur: 0, x: 0, y: 0 };
 const NO_BORDER: BorderSettings = { width: 0, color: "transparent", radius: 0 };
 
 export const THEMES: Record<ThemeName, ThemeDefinition> = {
+
+  // ── CNN — Cinematic red/black ───────────────────────────────────────────────
   "CNN": {
     name: "CNN",
-    colors: { primary: "#cc0001", secondary: "#8b0000", background: "#0d0d0d", text: "#f0f0f0", badge: "#cc0001", badgeText: "#ffffff" },
-    font: { ...BASE_FONT, weight: 700 },
-    border: NO_BORDER,
-    shadow: NO_SHADOW,
+    colors: {
+      primary: "#e8000a",
+      secondary: "#9b0007",
+      background: "rgba(10,0,0,0.97)",
+      text: "#f5f5f5",
+      badge: "#e8000a",
+      badgeText: "#ffffff",
+    },
+    font: { family: IMPACT_STACK, size: 14, weight: 900, letterSpacing: 0.03 },
+    border: { width: 4, color: "#e8000a", radius: 0 },
+    shadow: { enabled: true, color: "rgba(232,0,10,0.35)", blur: 24, x: 0, y: -6 },
     opacity: 1,
     tickerStyle: "CNN",
     spacing: 0,
     badgeLabel: "BREAKING",
+    gradientColors: ["#e8000a", "#6b0005"],
   },
+
+  // ── BBC — Royal authority ───────────────────────────────────────────────────
   "BBC": {
     name: "BBC",
-    colors: { primary: "#0057ff", secondary: "#003db3", background: "#1a1a2e", text: "#ffffff", badge: "#0057ff", badgeText: "#ffffff" },
-    font: { family: "Georgia, serif", size: 14, weight: 700, letterSpacing: 0.04 },
-    border: NO_BORDER,
-    shadow: NO_SHADOW,
+    colors: {
+      primary: "#1a73e8",
+      secondary: "#0d47a1",
+      background: "rgba(10,14,50,0.98)",
+      text: "#ffffff",
+      badge: "#1a73e8",
+      badgeText: "#ffffff",
+    },
+    font: { family: SERIF_STACK, size: 14, weight: 700, letterSpacing: 0.03 },
+    border: { width: 0, color: "transparent", radius: 0 },
+    shadow: { enabled: true, color: "rgba(26,115,232,0.25)", blur: 32, x: 0, y: -8 },
     opacity: 1,
     tickerStyle: "BBC",
-    spacing: 3,
+    spacing: 4,
     badgeLabel: "LIVE COVERAGE",
+    gradientColors: ["#1a73e8", "#0d3db8"],
   },
+
+  // ── Bloomberg — Terminal / financial ────────────────────────────────────────
   "Bloomberg": {
     name: "Bloomberg",
-    colors: { primary: "#f59e0b", secondary: "#d97706", background: "#0c0c0c", text: "rgba(255,255,255,0.88)", badge: "#f59e0b", badgeText: "#000000" },
-    font: { family: "monospace", size: 13, weight: 500, letterSpacing: 0.06 },
-    border: { width: 2, color: "#f59e0b", radius: 0 },
-    shadow: NO_SHADOW,
+    colors: {
+      primary: "#f5a623",
+      secondary: "#c07800",
+      background: "rgba(6,6,6,0.99)",
+      text: "rgba(255,255,255,0.88)",
+      badge: "#f5a623",
+      badgeText: "#000000",
+    },
+    font: { family: MONO_STACK, size: 13, weight: 500, letterSpacing: 0.07 },
+    border: { width: 2, color: "#f5a623", radius: 0 },
+    shadow: { enabled: true, color: "rgba(245,166,35,0.20)", blur: 20, x: 0, y: -4 },
     opacity: 1,
     tickerStyle: "Bloomberg",
     spacing: 0,
     badgeLabel: "MARKETS",
+    gradientColors: ["#f5a623", "#b36a00"],
   },
+
+  // ── Fox — Bold American broadcast ──────────────────────────────────────────
   "Fox": {
     name: "Fox",
-    colors: { primary: "#003399", secondary: "#002277", background: "#000033", text: "#ffffff", badge: "#003399", badgeText: "#ffffff" },
-    font: { ...BASE_FONT, weight: 800, letterSpacing: 0.01 },
-    border: { width: 3, color: "#003399", radius: 0 },
-    shadow: NO_SHADOW,
+    colors: {
+      primary: "#003fa3",
+      secondary: "#001d75",
+      background: "rgba(0,5,24,0.99)",
+      text: "#ffffff",
+      badge: "#003fa3",
+      badgeText: "#ffffff",
+    },
+    font: { family: IMPACT_STACK, size: 14, weight: 900, letterSpacing: 0.02 },
+    border: { width: 4, color: "#003fa3", radius: 0 },
+    shadow: { enabled: true, color: "rgba(0,63,163,0.30)", blur: 20, x: 0, y: -4 },
     opacity: 1,
     tickerStyle: "Fox",
     spacing: 0,
     badgeLabel: "FOX NEWS ALERT",
+    gradientColors: ["#003fa3", "#001566"],
   },
+
+  // ── Sky News — Sky-blue modern ──────────────────────────────────────────────
   "Sky News": {
     name: "Sky News",
-    colors: { primary: "#0ea5e9", secondary: "#0369a1", background: "rgba(0,0,0,0.92)", text: "#ffffff", badge: "#0ea5e9", badgeText: "#ffffff" },
-    font: { ...BASE_FONT, weight: 600 },
-    border: { width: 2, color: "#0ea5e9", radius: 0 },
-    shadow: NO_SHADOW,
+    colors: {
+      primary: "#00b4ff",
+      secondary: "#0077cc",
+      background: "rgba(0,12,28,0.97)",
+      text: "#ffffff",
+      badge: "#00b4ff",
+      badgeText: "#000000",
+    },
+    font: { family: HELVETICA_STACK, size: 14, weight: 600, letterSpacing: 0.01 },
+    border: { width: 3, color: "#00b4ff", radius: 0 },
+    shadow: { enabled: true, color: "rgba(0,180,255,0.25)", blur: 28, x: 0, y: -6 },
     opacity: 1,
     tickerStyle: "Sky News",
     spacing: 0,
     badgeLabel: "SKY NEWS",
+    gradientColors: ["#00b4ff", "#0057a8"],
   },
+
+  // ── Al Jazeera — Rich international ────────────────────────────────────────
   "Al Jazeera": {
     name: "Al Jazeera",
-    colors: { primary: "#cc0001", secondary: "#990000", background: "rgba(4,4,12,0.96)", text: "#ffffff", badge: "#cc0001", badgeText: "#ffffff" },
-    font: { ...BASE_FONT, weight: 700 },
-    border: { width: 3, color: "#cc0001", radius: 0 },
-    shadow: NO_SHADOW,
+    colors: {
+      primary: "#d00000",
+      secondary: "#800000",
+      background: "rgba(5,5,15,0.98)",
+      text: "#ffffff",
+      badge: "#d00000",
+      badgeText: "#ffffff",
+    },
+    font: { family: HELVETICA_STACK, size: 14, weight: 700, letterSpacing: 0.02 },
+    border: { width: 3, color: "#d00000", radius: 0 },
+    shadow: { enabled: true, color: "rgba(208,0,0,0.30)", blur: 20, x: 0, y: -4 },
     opacity: 1,
     tickerStyle: "Al Jazeera",
     spacing: 0,
     badgeLabel: "LIVE",
+    gradientColors: ["#d00000", "#600000"],
   },
+
+  // ── CNBC — Financial data ────────────────────────────────────────────────────
   "CNBC": {
     name: "CNBC",
-    colors: { primary: "#003399", secondary: "#0044cc", background: "#000022", text: "#ffffff", badge: "#003399", badgeText: "#ffffff" },
-    font: { ...BASE_FONT, weight: 700, size: 13 },
-    border: { width: 2, color: "#003399", radius: 0 },
-    shadow: NO_SHADOW,
+    colors: {
+      primary: "#0047b3",
+      secondary: "#001f7a",
+      background: "rgba(0,0,20,0.99)",
+      text: "#ffffff",
+      badge: "#0047b3",
+      badgeText: "#ffffff",
+    },
+    font: { family: HELVETICA_STACK, size: 13, weight: 700, letterSpacing: 0.02 },
+    border: { width: 2, color: "#0047b3", radius: 0 },
+    shadow: { enabled: true, color: "rgba(0,71,179,0.28)", blur: 20, x: 0, y: -4 },
     opacity: 1,
     tickerStyle: "CNBC",
     spacing: 0,
     badgeLabel: "CNBC",
+    gradientColors: ["#0047b3", "#001566"],
   },
+
+  // ── Dark — Premium indigo / violet ──────────────────────────────────────────
   "Dark": {
     name: "Dark",
-    colors: { primary: "#6366f1", secondary: "#4f46e5", background: "rgba(10,10,20,0.97)", text: "rgba(255,255,255,0.9)", badge: "#6366f1", badgeText: "#ffffff" },
-    font: { ...BASE_FONT, weight: 600 },
-    border: { width: 1, color: "rgba(99,102,241,0.4)", radius: 4 },
-    shadow: { enabled: true, color: "rgba(99,102,241,0.2)", blur: 20, x: 0, y: -4 },
+    colors: {
+      primary: "#7c3aed",
+      secondary: "#4f46e5",
+      background: "rgba(8,8,20,0.98)",
+      text: "rgba(255,255,255,0.92)",
+      badge: "#7c3aed",
+      badgeText: "#ffffff",
+    },
+    font: { family: SYSTEM_SANS, size: 13, weight: 600, letterSpacing: 0.01 },
+    border: { width: 1, color: "rgba(124,58,237,0.45)", radius: 6 },
+    shadow: { enabled: true, color: "rgba(124,58,237,0.25)", blur: 30, x: 0, y: -8 },
     opacity: 0.97,
     tickerStyle: "Modern",
     spacing: 0,
     badgeLabel: "LIVE",
+    gradientColors: ["#7c3aed", "#4338ca"],
   },
+
+  // ── Glass — Frosted glass premium ───────────────────────────────────────────
   "Glass": {
     name: "Glass",
-    colors: { primary: "#667eea", secondary: "#764ba2", background: "rgba(255,255,255,0.08)", text: "rgba(255,255,255,0.92)", badge: "#667eea", badgeText: "#ffffff" },
-    font: { ...BASE_FONT, weight: 600 },
-    border: { width: 1, color: "rgba(255,255,255,0.14)", radius: 12 },
-    shadow: { enabled: true, color: "rgba(0,0,0,0.4)", blur: 32, x: 0, y: 8 },
-    opacity: 0.9,
+    colors: {
+      primary: "#60a5fa",
+      secondary: "#a855f7",
+      background: "rgba(255,255,255,0.07)",
+      text: "rgba(255,255,255,0.95)",
+      badge: "#60a5fa",
+      badgeText: "#ffffff",
+    },
+    font: { family: SYSTEM_SANS, size: 13, weight: 600, letterSpacing: 0.01 },
+    border: { width: 1, color: "rgba(255,255,255,0.15)", radius: 12 },
+    shadow: { enabled: true, color: "rgba(0,0,0,0.45)", blur: 40, x: 0, y: 10 },
+    opacity: 0.92,
     tickerStyle: "Glass",
     spacing: 0,
     badgeLabel: "LIVE",
+    gradientColors: ["#60a5fa", "#a855f7"],
   },
+
+  // ── Modern — Cyberpunk neon ──────────────────────────────────────────────────
   "Modern": {
     name: "Modern",
-    colors: { primary: "#00ff88", secondary: "#00cc66", background: "rgba(0,4,16,0.97)", text: "#00ff88", badge: "#00ff88", badgeText: "#000000" },
-    font: { family: "monospace", size: 13, weight: 600, letterSpacing: 0.1 },
+    colors: {
+      primary: "#00ff88",
+      secondary: "#00ccff",
+      background: "rgba(0,4,16,0.99)",
+      text: "#00ff88",
+      badge: "#00ff88",
+      badgeText: "#000000",
+    },
+    font: { family: MONO_STACK, size: 13, weight: 600, letterSpacing: 0.10 },
     border: { width: 2, color: "#00ff88", radius: 0 },
-    shadow: { enabled: true, color: "#00ff8835", blur: 24, x: 0, y: -6 },
+    shadow: { enabled: true, color: "rgba(0,255,136,0.30)", blur: 28, x: 0, y: -6 },
     opacity: 1,
     tickerStyle: "Modern",
     spacing: 0,
     badgeLabel: "WIRE",
+    gradientColors: ["#00ff88", "#00ccff"],
   },
+
+  // ── Minimal — Ultra clean ────────────────────────────────────────────────────
   "Minimal": {
     name: "Minimal",
-    colors: { primary: "#ffffff", secondary: "rgba(255,255,255,0.5)", background: "rgba(0,0,0,0.88)", text: "#ffffff", badge: "rgba(255,255,255,0.15)", badgeText: "rgba(255,255,255,0.6)" },
-    font: { ...BASE_FONT, weight: 400, letterSpacing: 0.01 },
-    border: { width: 1, color: "rgba(255,255,255,0.10)", radius: 0 },
+    colors: {
+      primary: "#ffffff",
+      secondary: "rgba(255,255,255,0.45)",
+      background: "rgba(0,0,0,0.82)",
+      text: "rgba(255,255,255,0.95)",
+      badge: "rgba(255,255,255,0.12)",
+      badgeText: "rgba(255,255,255,0.55)",
+    },
+    font: { family: SYSTEM_SANS, size: 13, weight: 400, letterSpacing: 0.005 },
+    border: { width: 1, color: "rgba(255,255,255,0.08)", radius: 0 },
     shadow: NO_SHADOW,
     opacity: 0.88,
     tickerStyle: "Minimal",
     spacing: 0,
     badgeLabel: "LIVE",
+    gradientColors: ["rgba(255,255,255,0.9)", "rgba(200,200,200,0.7)"],
   },
+
+  // ── Election — Dramatic election night ──────────────────────────────────────
   "Election": {
     name: "Election",
-    colors: { primary: "#ef4444", secondary: "#3b82f6", background: "#0f172a", text: "#f8fafc", badge: "#ef4444", badgeText: "#ffffff" },
-    font: { ...BASE_FONT, weight: 800, size: 15, letterSpacing: 0.02 },
-    border: { width: 3, color: "#ef4444", radius: 0 },
-    shadow: { enabled: true, color: "rgba(239,68,68,0.3)", blur: 20, x: 0, y: 0 },
+    colors: {
+      primary: "#dc2626",
+      secondary: "#2563eb",
+      background: "rgba(8,14,26,0.99)",
+      text: "#f8fafc",
+      badge: "#dc2626",
+      badgeText: "#ffffff",
+    },
+    font: { family: IMPACT_STACK, size: 14, weight: 900, letterSpacing: 0.03 },
+    border: { width: 4, color: "#dc2626", radius: 0 },
+    shadow: { enabled: true, color: "rgba(220,38,38,0.35)", blur: 28, x: 0, y: -6 },
     opacity: 1,
     tickerStyle: "Election",
     spacing: 0,
     badgeLabel: "ELECTION NIGHT",
+    gradientColors: ["#dc2626", "#2563eb"],
   },
 };
 
