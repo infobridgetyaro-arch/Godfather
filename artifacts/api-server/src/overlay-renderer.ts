@@ -1169,9 +1169,8 @@ export class OverlayRenderer {
         this.withPanelAlpha(1, () => this.drawVideoUnderlay());
         return this.toRawRGBA();
       }
-      // Video output underlay — always runs behind the live video.
-      // Removed the videoOutputGradientActive guard so the gradient is permanently
-      // present. When the source drops, the gradient is already visible immediately.
+      // Video output underlay — renders gradient when videoOutputGradientActive is
+      // true; clears to transparent (black base shows) when false.
       this.withPanelAlpha(1, () => this.drawVideoUnderlay());
       // Atmosphere gradient — coloured bars on top/bottom edges
       const target = this.state.bgGradientActive ? (this.state.bgGradientOpacity ?? 1) : 0;
@@ -1459,13 +1458,19 @@ export class OverlayRenderer {
   }
 
   // ── VIDEO OUTPUT UNDERLAY ────────────────────────────────────────────────────
-  // Full-screen gradient that sits permanently behind the video output.
-  // Unlike drawBackground() (which only draws top/bottom bars), this fills
-  // the entire frame so the gradient is visible even when the video feed fills
-  // the whole frame — acting as a solid fallback colour if the source drops.
+  // Full-screen gradient that sits behind the video output layer.
+  // When videoOutputGradientActive is false the canvas is cleared (transparent),
+  // so the black nullsrc base shows through. When true, the gradient fills the
+  // entire frame and becomes visible wherever the source video is transparent
+  // or absent (e.g. after the source ends — eof_action=pass lets it show).
 
   private drawVideoUnderlay() {
     const { ctx, W, H, state } = this;
+    if (!state.videoOutputGradientActive) {
+      // Gradient off — clear to transparent so the black base layer shows through.
+      ctx.clearRect(0, 0, W, H);
+      return;
+    }
     const c1 = state.videoOutputGradient1 || "#003399";
     const c2 = state.videoOutputGradient2 || "#00cc44";
 

@@ -1495,8 +1495,10 @@ function buildFFmpegArgs(
       `[1:v][_bg]overlay=0:0:format=auto[_base]`,
       // Step 3: video (yuva420p — transparent bars where no video pixels exist)
       // laid on top of the gradient background.
-      // eof_action=repeat: freeze last video frame during brief reconnect gaps.
-      `[_base][_src]overlay=0:0:format=auto:eof_action=repeat[_composed]`,
+      // eof_action=pass: when the source stream ends, pass through the gradient
+      // base layer instead of freezing the last video frame — this makes the
+      // gradient visible and keeps all overlays running after the source drops.
+      `[_base][_src]overlay=0:0:format=auto:eof_action=pass[_composed]`,
       // pipe:4 is already rgba at scaleW×scaleH — no scale needed.
       `[4:v]format=rgba[_ui]`,
       `[_composed][_ui]overlay=0:0:format=auto:eof_action=repeat,format=yuv420p[_final]`,
@@ -2578,14 +2580,26 @@ export async function startStream(streamId: string, reuseUrl = false, keepStatus
               // the source is live again — the "false information" the user saw.
               scorerResetMetricWindows(streamId);
             } else if (s === "failed") {
-              sendLog(streamId, `[relay] Source failed — stream stopped. Restart manually.`);
-              const proc = activeStreams.get(streamId);
-              if (proc?.ffmpegProcess === ffmpegProc) stopStream(streamId);
+              sendLog(
+                streamId,
+                `[relay] Source ended — gradient background active. FFmpeg keeps streaming. ` +
+                `Click Stop only when you want to end the broadcast.`,
+              );
+              // Signal EOF on stdin so FFmpeg's source input ends cleanly.
+              // eof_action=pass on the [_base][_src] overlay then shows the
+              // gradient background while FFmpeg keeps streaming to the RTMP target.
+              // We do NOT call stopStream here — only the Stop button should do that.
+              try { (ffmpegProc.stdin as NodeJS.WritableStream | null)?.end(); } catch {}
             }
           } else if (evt.type === "fatal" && evt.message) {
-            sendLog(streamId, `[relay] Fatal: ${evt.message} — stream stopped. Restart manually.`);
-            const proc = activeStreams.get(streamId);
-            if (proc?.ffmpegProcess === ffmpegProc) stopStream(streamId);
+            sendLog(
+              streamId,
+              `[relay] Source error: ${evt.message} — gradient background active. ` +
+              `FFmpeg keeps streaming. Click Stop to end the broadcast.`,
+            );
+            // Close stdin so FFmpeg sees EOF on the source input. The gradient
+            // layer takes over via eof_action=pass. FFmpeg is NOT stopped.
+            try { (ffmpegProc.stdin as NodeJS.WritableStream | null)?.end(); } catch {}
           } else if (evt.type === "health" && evt.kbps !== undefined && evt.kbps > 0) {
             // Persist newly resolved quality back to the module-level cache
             // so the next hardKillAndRestart can skip the probe too.

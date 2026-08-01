@@ -286,7 +286,9 @@ export function buildFFmpegArgs(opts: BuildFFmpegArgsOptions): string[] {
       videoSrcFilter,
       `[3:v]format=rgba[_bg]`,
       `[1:v][_bg]overlay=0:0:format=auto[_base]`,
-      `[_base][_src]overlay=0:0:format=auto:eof_action=repeat[_composed]`,
+      // eof_action=pass: when source ends, show the gradient base layer instead of
+      // freezing the last frame — gradient stays visible, overlays keep running.
+      `[_base][_src]overlay=0:0:format=auto:eof_action=pass[_composed]`,
       `[4:v]format=rgba[_ui]`,
       `[_composed][_ui]overlay=0:0:format=auto:eof_action=repeat,format=yuv420p[_final]`,
       audioFilter,
