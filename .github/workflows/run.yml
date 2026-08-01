@@ -1,4 +1,4 @@
-name: Run BintuNet 🚀
+name: Run BintuNet
 
 on:
   workflow_dispatch:
@@ -7,107 +7,66 @@ on:
 
 jobs:
   serve:
-    name: Start server & expose public URL 🌐
+    name: Start server & expose public URL
     runs-on: ubuntu-latest
     timeout-minutes: 340
 
     steps:
-      - name: Checkout code 📦
+      - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Enable UTF-8 and emoji support 🌍😀
+      - name: Install system dependencies
         run: |
           sudo apt-get update -y -q
-          sudo apt-get install -y -q \
-            locales \
-            fonts-noto-core \
-            fonts-noto-cjk \
-            fonts-noto-color-emoji
-
-          sudo locale-gen en_US.UTF-8
-          sudo update-locale LANG=en_US.UTF-8 LC_ALL=en_US.UTF-8
-
-          echo "LANG=en_US.UTF-8"     >> $GITHUB_ENV
-          echo "LC_ALL=en_US.UTF-8"   >> $GITHUB_ENV
-          echo "LANGUAGE=en_US:en"    >> $GITHUB_ENV
-          echo "PYTHONUTF8=1"         >> $GITHUB_ENV
-
-          locale
-
-      - name: Install system dependencies ⚙️
-        run: |
-          sudo apt-get update -y -q
-          sudo apt-get install -y -q ffmpeg python3 python3-pip curl
-
+          sudo apt-get install -y -q ffmpeg python3 python3-pip
           pip3 install --quiet streamlink
-
           sudo curl -fsSL \
             https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp \
             -o /usr/local/bin/yt-dlp
-
           sudo chmod a+rx /usr/local/bin/yt-dlp
-
-          echo "FFmpeg:"
           ffmpeg -version | head -1
-
-          echo "Streamlink:"
           streamlink --version
-
-          echo "yt-dlp:"
           yt-dlp --version
 
-      - name: Install ngrok 🚇
+      - name: Install ngrok
         run: |
-          curl -fsSL \
-            https://bin.equinox.io/c/bNyj1mQVY4c/ngrok-v3-stable-linux-amd64.tgz \
+          curl -fsSL https://bin.equinox.io/c/bNyj1mQVY4c/ngrok-v3-stable-linux-amd64.tgz \
             | sudo tar -xz -C /usr/local/bin
-
           ngrok --version
 
-      - name: Setup pnpm 📦
+      - name: Setup pnpm
         uses: pnpm/action-setup@v4
         with:
           version: 10
 
-      - name: Setup Node.js 🟢
+      - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: pnpm
 
-      - name: Install dependencies 📥
+      - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Build frontend 🎨
+      - name: Build frontend
+        run: PORT=3000 BASE_PATH=/ pnpm --filter @workspace/bintunet run build
         env:
           NODE_ENV: production
-          PORT: "3000"
-          BASE_PATH: "/"
-          LANG: en_US.UTF-8
-          LC_ALL: en_US.UTF-8
-        run: pnpm --filter @workspace/bintunet run build
 
-      - name: Build API server 🔧
+      - name: Build API server
         run: pnpm --filter @workspace/api-server run build
 
-      - name: Prepare runtime directories 📁
+      - name: Prepare runtime directories
         run: |
           mkdir -p artifacts/api-server/uploads
           mkdir -p artifacts/api-server/tmp_overlay
-          mkdir -p hls
 
-      - name: Start API server 🚀
+      - name: Start API server
         env:
           NODE_ENV: production
-          LANG: en_US.UTF-8
-          LC_ALL: en_US.UTF-8
-          LANGUAGE: en_US:en
-          PYTHONUTF8: "1"
-
           PORT: "8080"
           SESSION_SECRET: ${{ secrets.SESSION_SECRET }}
           BINTUNET_PASSWORD: ${{ secrets.BINTUNET_PASSWORD }}
-
           YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
           YOUTUBE_API_KEYS: ${{ secrets.YOUTUBE_API_KEYS }}
           YOUTUBE_API_KEY1: ${{ secrets.YOUTUBE_API_KEY1 }}
@@ -115,161 +74,130 @@ jobs:
           YOUTUBE_API_KEY3: ${{ secrets.YOUTUBE_API_KEY3 }}
           YOUTUBE_API_KEY4: ${{ secrets.YOUTUBE_API_KEY4 }}
           YOUTUBE_API_KEY5: ${{ secrets.YOUTUBE_API_KEY5 }}
-
           GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
           PAYSTACK_SECRET_KEY: ${{ secrets.PAYSTACK_SECRET_KEY }}
-
           NGROK_TOKEN: ${{ secrets.NGROK_TOKEN }}
-
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
-
           REDIS_URL: ${{ secrets.REDIS_URL }}
-
           VPS_ROLE: ${{ secrets.VPS_ROLE }}
           PRIMARY_API_URL: ${{ secrets.PRIMARY_API_URL }}
-
           FAILOVER_POLL_MS: ${{ secrets.FAILOVER_POLL_MS }}
           FAILOVER_TIMEOUT_MS: ${{ secrets.FAILOVER_TIMEOUT_MS }}
-
           HLS_ENABLED: ${{ secrets.HLS_ENABLED }}
           HLS_SEGMENT_DIR: ${{ secrets.HLS_SEGMENT_DIR }}
-
           R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
           R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
           R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
           R2_BUCKET: ${{ secrets.R2_BUCKET }}
           CDN_BASE_URL: ${{ secrets.CDN_BASE_URL }}
-
           LOG_LEVEL: ${{ secrets.LOG_LEVEL }}
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
-
         run: |
           node --enable-source-maps artifacts/api-server/dist/index.mjs \
             > /tmp/server.log 2>&1 &
-
           echo $! > /tmp/server.pid
           echo "Server PID: $(cat /tmp/server.pid)"
-          echo "Waiting for server on port 8080..."
 
+          echo "Waiting for server on port 8080..."
           SERVER_UP=false
           for i in $(seq 1 30); do
             if curl -sf http://localhost:8080/api/healthz > /dev/null 2>&1; then
-              echo "✅ Server is ready after ${i}s"
+              echo "✓ Server is up after ${i}s"
               SERVER_UP=true
               break
             fi
-
             if ! kill -0 "$(cat /tmp/server.pid)" 2>/dev/null; then
-              echo "❌ Server crashed"
+              echo "✗ Server process died during startup. Crash log:"
               cat /tmp/server.log
               exit 1
             fi
-
             sleep 1
           done
 
           if [ "$SERVER_UP" = "false" ]; then
-            echo "❌ Server did not start within 30s"
+            echo "✗ Server did not respond in 30s. Crash log:"
             cat /tmp/server.log
+            kill "$(cat /tmp/server.pid)" 2>/dev/null || true
             exit 1
           fi
 
-      - name: Start ngrok tunnel 🌐
+      - name: Start ngrok tunnel
         run: |
           ngrok config add-authtoken "${{ secrets.NGROK_TOKEN }}"
-
-          ngrok http 8080 \
-            --pooling-enabled \
-            --log=stdout \
-            > /tmp/ngrok.log 2>&1 &
-
+          ngrok http 8080 --pooling-enabled --log=stdout > /tmp/ngrok.log 2>&1 &
           echo $! > /tmp/ngrok.pid
-          echo "Waiting for public URL..."
 
+          echo "Waiting for ngrok URL..."
           PUBLIC_URL=""
           for i in $(seq 1 30); do
             PUBLIC_URL=$(curl -sf http://localhost:4040/api/tunnels \
               | grep -oP '"public_url":"https://[^"]+' \
               | head -1 \
               | sed 's/"public_url":"//g')
-
             if [ -n "$PUBLIC_URL" ]; then
               break
             fi
-
             sleep 1
           done
 
           if [ -z "$PUBLIC_URL" ]; then
-            echo "❌ ngrok URL not found"
+            echo "ERROR: ngrok URL not found. Dumping log:"
             cat /tmp/ngrok.log
             exit 1
           fi
 
           echo ""
-          echo "╔══════════════════════════════════════════════════╗"
-          echo "║ 🚀 BintuNet LIVE                                ║"
-          echo "║                                                  ║"
-          printf "║ 🌍 URL: %-41s ║\n" "$PUBLIC_URL"
-          echo "║                                                  ║"
-          echo "║ 😀 UTF-8 / Emoji Support Enabled                 ║"
-          echo "╚══════════════════════════════════════════════════╝"
+          echo "╔══════════════════════════════════════════════════════╗"
+          echo "║  🚀 BintuNet is LIVE                                 ║"
+          echo "║                                                      ║"
+          printf "║  URL : %-46s ║\n" "$PUBLIC_URL"
+          echo "║                                                      ║"
+          echo "╚══════════════════════════════════════════════════════╝"
           echo ""
+          echo "PUBLIC_URL=$PUBLIC_URL" >> "$GITHUB_ENV"
 
-          echo "PUBLIC_URL=$PUBLIC_URL" >> $GITHUB_ENV
-
-      - name: Keep alive ❤️
+      - name: Keep alive
         run: |
           SERVER_PID=$(cat /tmp/server.pid)
           NGROK_PID=$(cat /tmp/ngrok.pid)
 
           echo "════════════════════════════════════════"
-          echo "🚀 BintuNet Running"
-          echo "🖥  Server PID : $SERVER_PID"
-          echo "🚇  ngrok PID  : $NGROK_PID"
-          echo "🌐  URL         : $PUBLIC_URL"
-          echo "⏳  Runtime     : 5h 40m"
+          echo "  Server PID : $SERVER_PID"
+          echo "  ngrok PID  : $NGROK_PID"
+          echo "  URL        : $PUBLIC_URL"
+          echo "  Running for up to 5 hours 40 minutes."
+          echo "  Cancel this workflow to shut down."
           echo "════════════════════════════════════════"
 
           if ! kill -0 "$SERVER_PID" 2>/dev/null; then
-            echo "❌ Server already stopped"
-            tail -50 /tmp/server.log
+            echo "✗ Server process is not running! Crash log:"
+            cat /tmp/server.log
             exit 1
           fi
-
           if ! kill -0 "$NGROK_PID" 2>/dev/null; then
-            echo "❌ ngrok already stopped"
-            tail -50 /tmp/ngrok.log
+            echo "✗ ngrok process is not running! ngrok log:"
+            cat /tmp/ngrok.log
             exit 1
           fi
 
           TICK=0
-          while kill -0 "$SERVER_PID" 2>/dev/null && \
-                kill -0 "$NGROK_PID" 2>/dev/null
-          do
+          while kill -0 "$SERVER_PID" 2>/dev/null && kill -0 "$NGROK_PID" 2>/dev/null; do
             sleep 30
-            TICK=$((TICK + 1))
-
-            if [ $((TICK % 10)) -eq 0 ]; then
-              MINS=$((TICK * 30 / 60))
-              echo "$(date -u '+%H:%M:%S') ❤️  Alive ${MINS}m — $PUBLIC_URL"
+            TICK=$(( TICK + 1 ))
+            if [ $(( TICK % 10 )) -eq 0 ]; then
+              MINS=$(( TICK * 30 / 60 ))
+              echo "$(date -u '+%H:%M:%S') ♥  alive for ${MINS}m — $PUBLIC_URL"
             fi
           done
 
           echo ""
-          echo "⚠️  A process exited. Shutting down."
-
+          echo "A process exited — shutting down."
           if ! kill -0 "$SERVER_PID" 2>/dev/null; then
-            echo "Server crash log:"
-            tail -50 /tmp/server.log
+            echo "Server died. Last 30 lines of server log:"
+            tail -30 /tmp/server.log
           fi
-
           if ! kill -0 "$NGROK_PID" 2>/dev/null; then
-            echo "ngrok crash log:"
-            tail -50 /tmp/ngrok.log
+            echo "ngrok died. Last 20 lines of ngrok log:"
+            tail -20 /tmp/ngrok.log
           fi
-<<<<<<< HEAD
-=======
-          
->>>>>>> 6f263c6ae1b280e8eda052a0aef628285307d89a
