@@ -1,0 +1,693 @@
+name: Run BintuNet
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+jobs:
+  serve:
+    name: Start server & expose public URL
+    runs-on: ubuntu-latest
+    timeout-minutes: 340
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # Apply runner-level tuning before any application process starts. The
+      # limits are also applied again in the process-launch steps because
+      # ulimit values belong to the shell process tree and do not cross steps.
+      - name: Optimize runner and print startup diagnostics
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          sudo apt-get update -y -q
+          sudo apt-get install -y -q \
+            locales \
+            procps \
+            psmisc \
+            sysstat \
+            util-linux \
+            lsof \
+            jq \
+            bc \
+            fonts-noto \
+            fonts-noto-cjk \
+            fonts-noto-extra \
+            fonts-noto-mono \
+            fonts-noto-color-emoji
+
+          # Install the Unicode locales and fonts used by the dashboard,
+          # overlays, emoji, multilingual text, and diagnostic output.
+          sudo sed -i 's/^# *en_US.UTF-8 UTF-8/en_US.UTF-8 UTF-8/' /etc/locale.gen
+          sudo locale-gen en_US.UTF-8
+          sudo update-locale LANG=en_US.UTF-8 LC_ALL=en_US.UTF-8
+          echo "LANG=en_US.UTF-8" >> "$GITHUB_ENV"
+          echo "LC_ALL=en_US.UTF-8" >> "$GITHUB_ENV"
+          echo "PYTHONIOENCODING=utf-8" >> "$GITHUB_ENV"
+          echo "PYTHONUNBUFFERED=1" >> "$GITHUB_ENV"
+
+          # Keep Node source maps enabled while bounding the V8 old-space heap.
+          # The bound prevents an accidental leak from consuming the runner.
+          echo "NODE_OPTIONS=--enable-source-maps --max-old-space-size=4096" >> "$GITHUB_ENV"
+
+          # Raise limits where the hosted runner permits it. A failed raise is
+          # non-fatal because GitHub-hosted images can impose a lower ceiling.
+          ulimit -n 1048576 2>/dev/null || ulimit -n 65535 2>/dev/null || true
+          ulimit -u 65535 2>/dev/null || true
+          sudo sysctl -w fs.file-max=2097152 >/dev/null 2>&1 || true
+
+          echo "===== BintuNet runner startup diagnostics ====="
+          printf 'UTC time      : %s\n' "$(date -u '+%Y-%m-%dT%H:%M:%SZ')"
+          printf 'Kernel        : '; uname -a
+          printf 'Architecture  : '; uname -m
+          printf 'CPU count     : '; nproc
+          printf 'Open-file lim : '; ulimit -n || true
+          printf 'Process lim   : '; ulimit -u || true
+          echo "--- CPU ---"
+          lscpu 2>/dev/null | sed -n '1,18p' || true
+          echo "--- RAM ---"
+          free -h || true
+          sed -n '1,12p' /proc/meminfo || true
+          echo "--- Disk ---"
+          df -hT || true
+          echo "--- Load ---"
+          cat /proc/loadavg || true
+          echo "--- Locale ---"
+          locale || true
+          echo "--- Fonts ---"
+          fc-match "Noto Sans" 2>/dev/null || true
+          fc-match "Noto Color Emoji" 2>/dev/null || true
+          echo "==============================================="
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update -y -q
+          sudo apt-get install -y -q \
+            ffmpeg \
+            python3 \
+            python3-pip \
+            fonts-noto-color-emoji \
+            fonts-noto \
+            fonts-noto-cjk \
+            fonts-noto-extra \
+            fonts-noto-mono
+          pip3 install --quiet streamlink
+          sudo curl -fsSL \
+            https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp \
+            -o /usr/local/bin/yt-dlp
+          sudo chmod a+rx /usr/local/bin/yt-dlp
+          fc-cache -f >/dev/null 2>&1 || true
+          ffmpeg -version | head -1
+          streamlink --version
+          yt-dlp --version
+
+      - name: Install ngrok
+        run: |
+          curl -fsSL https://bin.equinox.io/c/bNyj1mQVY4c/ngrok-v3-stable-linux-amd64.tgz \
+            | sudo tar -xz -C /usr/local/bin
+          ngrok --version
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build frontend
+        run: PORT=3000 BASE_PATH=/ pnpm --filter @workspace/bintunet run build
+        env:
+          NODE_ENV: production
+
+      - name: Build API server
+        run: pnpm --filter @workspace/api-server run build
+
+      - name: Prepare runtime directories
+        run: |
+          set -euo pipefail
+
+          # Clean only BintuNet-owned processes and paths. This avoids stale
+          # encoders, tunnels, PID files, and overlay fragments from a prior
+          # attempt without deleting unrelated runner temporary files.
+          pkill -TERM -x ffmpeg 2>/dev/null || true
+          pkill -TERM -x streamlink 2>/dev/null || true
+          pkill -TERM -x yt-dlp 2>/dev/null || true
+          sleep 2
+          pkill -KILL -x ffmpeg 2>/dev/null || true
+          pkill -KILL -x streamlink 2>/dev/null || true
+          pkill -KILL -x yt-dlp 2>/dev/null || true
+
+          rm -f \
+            /tmp/server.pid \
+            /tmp/ngrok.pid \
+            /tmp/bintunet-supervisor.pid \
+            /tmp/bintunet-*.tmp \
+            /tmp/health-*.log \
+            /tmp/watchdog.log \
+            /tmp/health.log \
+            /tmp/diagnostics.log
+
+          mkdir -p artifacts/api-server/uploads
+          mkdir -p artifacts/api-server/tmp_overlay
+          find artifacts/api-server/tmp_overlay -mindepth 1 -maxdepth 1 -exec rm -rf -- {} +
+          find artifacts/api-server/uploads -mindepth 1 -maxdepth 1 -type f \
+            -name 'bintunet-*.tmp' -delete
+
+          # These are intentionally repeated in each launcher; shell limits do
+          # not survive the boundary between GitHub Actions steps.
+          ulimit -n 1048576 2>/dev/null || ulimit -n 65535 2>/dev/null || true
+          ulimit -u 65535 2>/dev/null || true
+
+      - name: Start API server
+        env:
+          NODE_ENV: production
+          PORT: "8080"
+          SESSION_SECRET: ${{ secrets.SESSION_SECRET }}
+          BINTUNET_PASSWORD: ${{ secrets.BINTUNET_PASSWORD }}
+          YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
+          YOUTUBE_API_KEYS: ${{ secrets.YOUTUBE_API_KEYS }}
+          YOUTUBE_API_KEY1: ${{ secrets.YOUTUBE_API_KEY1 }}
+          YOUTUBE_API_KEY2: ${{ secrets.YOUTUBE_API_KEY2 }}
+          YOUTUBE_API_KEY3: ${{ secrets.YOUTUBE_API_KEY3 }}
+          YOUTUBE_API_KEY4: ${{ secrets.YOUTUBE_API_KEY4 }}
+          YOUTUBE_API_KEY5: ${{ secrets.YOUTUBE_API_KEY5 }}
+          GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
+          PAYSTACK_SECRET_KEY: ${{ secrets.PAYSTACK_SECRET_KEY }}
+          NGROK_TOKEN: ${{ secrets.NGROK_TOKEN }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          REDIS_URL: ${{ secrets.REDIS_URL }}
+          VPS_ROLE: ${{ secrets.VPS_ROLE }}
+          PRIMARY_API_URL: ${{ secrets.PRIMARY_API_URL }}
+          FAILOVER_POLL_MS: ${{ secrets.FAILOVER_POLL_MS }}
+          FAILOVER_TIMEOUT_MS: ${{ secrets.FAILOVER_TIMEOUT_MS }}
+          HLS_ENABLED: ${{ secrets.HLS_ENABLED }}
+          HLS_SEGMENT_DIR: ${{ secrets.HLS_SEGMENT_DIR }}
+          R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_BUCKET: ${{ secrets.R2_BUCKET }}
+          CDN_BASE_URL: ${{ secrets.CDN_BASE_URL }}
+          LOG_LEVEL: ${{ secrets.LOG_LEVEL }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: |
+          set -euo pipefail
+          ulimit -n 1048576 2>/dev/null || ulimit -n 65535 2>/dev/null || true
+          ulimit -u 65535 2>/dev/null || true
+          export NODE_OPTIONS="${NODE_OPTIONS:---enable-source-maps --max-old-space-size=4096}"
+
+          node --enable-source-maps artifacts/api-server/dist/index.mjs \
+            > /tmp/server.log 2>&1 &
+          echo $! > /tmp/server.pid
+          echo "Server PID: $(cat /tmp/server.pid)"
+
+          echo "Waiting for server on port 8080..."
+          SERVER_UP=false
+          for i in $(seq 1 30); do
+            if curl -sf http://localhost:8080/api/healthz > /dev/null 2>&1; then
+              echo "✓ Server is up after ${i}s"
+              SERVER_UP=true
+              break
+            fi
+            if ! kill -0 "$(cat /tmp/server.pid)" 2>/dev/null; then
+              echo "ERROR: Server process died during startup. Last 100 lines:"
+              tail -n 100 /tmp/server.log || true
+              exit 1
+            fi
+            sleep 1
+          done
+
+          if [ "$SERVER_UP" = "false" ]; then
+            echo "ERROR: Server did not respond in 30s. Last 100 lines:"
+            tail -n 100 /tmp/server.log || true
+            kill "$(cat /tmp/server.pid)" 2>/dev/null || true
+            exit 1
+          fi
+
+      - name: Start ngrok tunnel
+        env:
+          NGROK_TOKEN: ${{ secrets.NGROK_TOKEN }}
+        run: |
+          set -euo pipefail
+          ulimit -n 1048576 2>/dev/null || ulimit -n 65535 2>/dev/null || true
+          ulimit -u 65535 2>/dev/null || true
+
+          ngrok config add-authtoken "${{ secrets.NGROK_TOKEN }}"
+          ngrok http 8080 --pooling-enabled --log=stdout > /tmp/ngrok.log 2>&1 &
+          echo $! > /tmp/ngrok.pid
+
+          echo "Waiting for ngrok URL..."
+          PUBLIC_URL=""
+          for i in $(seq 1 30); do
+            PUBLIC_URL=$(curl -sf http://localhost:4040/api/tunnels \
+              | grep -oP '"public_url":"https://[^"]+' \
+              | head -1 \
+              | sed 's/"public_url":"//g' || true)
+            if [ -n "$PUBLIC_URL" ]; then
+              break
+            fi
+            sleep 1
+          done
+
+          if [ -z "$PUBLIC_URL" ]; then
+            echo "ERROR: ngrok URL not found. Last 100 lines:"
+            tail -n 100 /tmp/ngrok.log || true
+            exit 1
+          fi
+
+          echo ""
+          echo "╔══════════════════════════════════════════════════════╗"
+          echo "║  🚀 BintuNet is LIVE                                 ║"
+          echo "║                                                      ║"
+          printf "║  URL : %-46s ║\n" "$PUBLIC_URL"
+          echo "║                                                      ║"
+          echo "╚══════════════════════════════════════════════════════╝"
+          echo ""
+          echo "PUBLIC_URL=$PUBLIC_URL" >> "$GITHUB_ENV"
+
+      - name: Keep alive
+        env:
+          NODE_ENV: production
+          PORT: "8080"
+          SESSION_SECRET: ${{ secrets.SESSION_SECRET }}
+          BINTUNET_PASSWORD: ${{ secrets.BINTUNET_PASSWORD }}
+          YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
+          YOUTUBE_API_KEYS: ${{ secrets.YOUTUBE_API_KEYS }}
+          YOUTUBE_API_KEY1: ${{ secrets.YOUTUBE_API_KEY1 }}
+          YOUTUBE_API_KEY2: ${{ secrets.YOUTUBE_API_KEY2 }}
+          YOUTUBE_API_KEY3: ${{ secrets.YOUTUBE_API_KEY3 }}
+          YOUTUBE_API_KEY4: ${{ secrets.YOUTUBE_API_KEY4 }}
+          YOUTUBE_API_KEY5: ${{ secrets.YOUTUBE_API_KEY5 }}
+          GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
+          PAYSTACK_SECRET_KEY: ${{ secrets.PAYSTACK_SECRET_KEY }}
+          NGROK_TOKEN: ${{ secrets.NGROK_TOKEN }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          REDIS_URL: ${{ secrets.REDIS_URL }}
+          VPS_ROLE: ${{ secrets.VPS_ROLE }}
+          PRIMARY_API_URL: ${{ secrets.PRIMARY_API_URL }}
+          FAILOVER_POLL_MS: ${{ secrets.FAILOVER_POLL_MS }}
+          FAILOVER_TIMEOUT_MS: ${{ secrets.FAILOVER_TIMEOUT_MS }}
+          HLS_ENABLED: ${{ secrets.HLS_ENABLED }}
+          HLS_SEGMENT_DIR: ${{ secrets.HLS_SEGMENT_DIR }}
+          R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_BUCKET: ${{ secrets.R2_BUCKET }}
+          CDN_BASE_URL: ${{ secrets.CDN_BASE_URL }}
+          LOG_LEVEL: ${{ secrets.LOG_LEVEL }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: |
+          set -uo pipefail
+
+          # Colored, timestamped log helpers make long-running Actions output
+          # scannable while each category is also persisted under /tmp.
+          RESET=$'\033[0m'
+          BLUE=$'\033[34m'
+          YELLOW=$'\033[33m'
+          RED=$'\033[31m'
+          GREEN=$'\033[32m'
+          MAGENTA=$'\033[35m'
+          CYAN=$'\033[36m'
+
+          emit() {
+            local color="$1" level="$2" message="$3"
+            local line
+            line="$(date -u '+%Y-%m-%dT%H:%M:%SZ') [$level] $message"
+            printf '%b%s%b\n' "$color" "$line" "$RESET" | tee -a /tmp/watchdog.log
+          }
+          info() { emit "$BLUE" INFO "$*"; }
+          warning() { emit "$YELLOW" WARNING "$*"; }
+          error() { emit "$RED" ERROR "$*"; }
+          success() { emit "$GREEN" SUCCESS "$*"; }
+          watchdog() { emit "$MAGENTA" WATCHDOG "$*"; }
+          health() { emit "$CYAN" HEALTH "$*"; }
+
+          SERVER_PID="$(cat /tmp/server.pid 2>/dev/null || true)"
+          NGROK_PID="$(cat /tmp/ngrok.pid 2>/dev/null || true)"
+          PUBLIC_URL="${PUBLIC_URL:-}"
+          HEALTH_TICKS=0
+          API_HEALTH_FAILURES=0
+          NGROK_HEALTH_FAILURES=0
+          PREV_FFMPEG_COUNT=0
+          PREV_STREAMLINK_COUNT=0
+          FFMPEG_WAS_SEEN=false
+          STREAMLINK_WAS_SEEN=false
+          SHUTDOWN_DONE=false
+          declare -a RSS_HISTORY=()
+          declare -a CPU_HISTORY=()
+
+          # A process is considered live only when it is not a zombie. This
+          # prevents kill -0 from treating a dead child as healthy.
+          pid_is_live() {
+            local pid="${1:-}"
+            [[ "$pid" =~ ^[0-9]+$ ]] || return 1
+            (( pid > 1 )) || return 1
+            kill -0 "$pid" 2>/dev/null || return 1
+            local state
+            state="$(ps -o stat= -p "$pid" 2>/dev/null | tr -d ' ' || true)"
+            [[ -n "$state" && "$state" != Z* ]]
+          }
+
+          safe_kill_pid() {
+            local pid="${1:-}" signal="${2:-TERM}"
+            [[ "$pid" =~ ^[0-9]+$ ]] || return 0
+            (( pid > 1 && pid != $$ )) || return 0
+            kill "-$signal" "$pid" 2>/dev/null || true
+          }
+
+          # Print the requested failure context in one place. These files are
+          # intentionally tailed rather than fully printed to avoid drowning
+          # out the actual failure after a multi-hour run.
+          diagnostics() {
+            local reason="${1:-unspecified}"
+            {
+              printf '%s\n' "===== BintuNet diagnostics: $reason ====="
+              printf '%s\n' "--- last 100 lines: server ---"
+              tail -n 100 /tmp/server.log 2>/dev/null || true
+              printf '%s\n' "--- last 100 lines: ffmpeg ---"
+              tail -n 100 /tmp/ffmpeg.log 2>/dev/null || true
+              printf '%s\n' "--- last 100 lines: streamlink ---"
+              tail -n 100 /tmp/streamlink.log 2>/dev/null || true
+              printf '%s\n' "--- last 100 lines: ngrok ---"
+              tail -n 100 /tmp/ngrok.log 2>/dev/null || true
+              printf '%s\n' "--- running processes ---"
+              ps -eo user,pid,ppid,stat,etime,%cpu,%mem,rss,comm,args --sort=-%cpu | head -n 80 || true
+              printf '%s\n' "--- memory ---"
+              free -h || true
+              sed -n '1,20p' /proc/meminfo || true
+              printf '%s\n' "--- disk ---"
+              df -hT || true
+              printf '%s\n' "--- load ---"
+              cat /proc/loadavg || true
+              printf '%s\n' "==============================================="
+            } | tee -a /tmp/diagnostics.log
+          }
+
+          # The application owns the command line and pipe topology of
+          # streamlink, yt-dlp, and FFmpeg. We therefore never guess their
+          # arguments or restart them with broken pipes. Their death is
+          # detected and diagnosed here; the app's existing source/encoder
+          # recovery logic remains the authority for restarting them.
+          process_counts() {
+            FFMPEG_COUNT="$(pgrep -xc ffmpeg 2>/dev/null || true)"
+            STREAMLINK_COUNT="$(pgrep -xc streamlink 2>/dev/null || true)"
+            YTDLP_COUNT="$(pgrep -af '(^|/)(yt-dlp|yt_dlp)( |$)' 2>/dev/null | wc -l | tr -d ' ' || true)"
+            NODE_COUNT="$(pgrep -af 'node .*artifacts/api-server|node .*dist/index' 2>/dev/null | wc -l | tr -d ' ' || true)"
+            FFMPEG_COUNT="${FFMPEG_COUNT:-0}"
+            STREAMLINK_COUNT="${STREAMLINK_COUNT:-0}"
+            YTDLP_COUNT="${YTDLP_COUNT:-0}"
+            NODE_COUNT="${NODE_COUNT:-0}"
+          }
+
+          # Remove only orphaned media workers and terminate only target
+          # process parents that are responsible for unreaped zombies.
+          cleanup_leaks() {
+            local pid ppid stat comm parent_comm
+            while read -r pid ppid stat comm; do
+              [[ "$pid" =~ ^[0-9]+$ ]] || continue
+              [[ "$stat" == Z* ]] || continue
+              parent_comm="$(ps -o comm= -p "$ppid" 2>/dev/null | tr -d ' ' || true)"
+              case "$parent_comm" in
+                node|ffmpeg|streamlink|yt-dlp|ngrok)
+                  warning "Zombie PID $pid found; stopping target parent PID $ppid ($parent_comm)"
+                  safe_kill_pid "$ppid" TERM
+                  ;;
+              esac
+            done < <(ps -eo pid=,ppid=,stat=,comm= 2>/dev/null || true)
+
+            while read -r pid ppid comm; do
+              [[ "$pid" =~ ^[0-9]+$ ]] || continue
+              [[ "$ppid" == "1" ]] || continue
+              case "$comm" in
+                ffmpeg|streamlink|yt-dlp)
+                  warning "Orphan $comm PID $pid detected; terminating it"
+                  safe_kill_pid "$pid" TERM
+                  ;;
+              esac
+            done < <(ps -eo pid=,ppid=,comm= 2>/dev/null || true)
+          }
+
+          # Track monotonic RSS and CPU growth over several health samples.
+          # Trends generate a warning and diagnostics; healthy processes are
+          # not killed just because one sample is high.
+          resource_trend_check() {
+            local rss_mb cpu_x100
+            rss_mb="$(ps -o rss= -p "$SERVER_PID" 2>/dev/null \
+              | awk '{sum+=$1} END {printf "%d", sum/1024}' || true)"
+            cpu_x100="$(ps -o %cpu= -p "$SERVER_PID" 2>/dev/null \
+              | awk '{sum+=$1} END {printf "%d", sum*100}' || true)"
+            rss_mb="${rss_mb:-0}"
+            cpu_x100="${cpu_x100:-0}"
+            RSS_HISTORY+=("$rss_mb")
+            CPU_HISTORY+=("$cpu_x100")
+            ((${#RSS_HISTORY[@]} > 4)) && RSS_HISTORY=("${RSS_HISTORY[@]: -4}")
+            ((${#CPU_HISTORY[@]} > 4)) && CPU_HISTORY=("${CPU_HISTORY[@]: -4}")
+
+            if ((${#RSS_HISTORY[@]} >= 3)); then
+              local n=${#RSS_HISTORY[@]}
+              local r1="${RSS_HISTORY[$((n-3))]}"
+              local r2="${RSS_HISTORY[$((n-2))]}"
+              local r3="${RSS_HISTORY[$((n-1))]}"
+              if (( r1 < r2 && r2 < r3 && r3-r1 >= 64 )); then
+                warning "Steadily increasing API RSS detected: ${r1}MB -> ${r2}MB -> ${r3}MB"
+                diagnostics "possible Node memory leak"
+              fi
+            fi
+
+            if ((${#CPU_HISTORY[@]} >= 3)); then
+              local n=${#CPU_HISTORY[@]}
+              local c1="${CPU_HISTORY[$((n-3))]}"
+              local c2="${CPU_HISTORY[$((n-2))]}"
+              local c3="${CPU_HISTORY[$((n-1))]}"
+              if (( c1 < c2 && c2 < c3 && c3-c1 >= 500 )); then
+                warning "Steadily increasing API CPU detected: $((c1/100))% -> $((c2/100))% -> $((c3/100))%"
+                diagnostics "possible CPU leak"
+              fi
+            fi
+          }
+
+          health_snapshot() {
+            local stamp file
+            stamp="$(date -u '+%Y%m%dT%H%M%SZ')"
+            file="/tmp/health-${stamp}.log"
+            process_counts
+            {
+              printf '%b%s%b\n' "$CYAN" "$(date -u '+%Y-%m-%dT%H:%M:%SZ') [HEALTH] snapshot" "$RESET"
+              printf 'CPU usage:\n'
+              vmstat 1 2 2>/dev/null | tail -n 1 || true
+              printf 'Memory usage:\n'
+              free -h || true
+              printf 'Disk usage:\n'
+              df -hT || true
+              printf 'Load average: '
+              cat /proc/loadavg || true
+              printf 'Top CPU processes:\n'
+              ps -eo pid,ppid,stat,etime,%cpu,%mem,rss,comm,args --sort=-%cpu | head -n 20 || true
+              printf 'FFmpeg processes (%s):\n' "$FFMPEG_COUNT"
+              pgrep -af ffmpeg || true
+              printf 'Streamlink processes (%s):\n' "$STREAMLINK_COUNT"
+              pgrep -af streamlink || true
+              printf 'yt-dlp processes (%s):\n' "$YTDLP_COUNT"
+              pgrep -af 'yt-dlp|yt_dlp' || true
+              printf 'Node processes (%s):\n' "$NODE_COUNT"
+              pgrep -af 'node' || true
+              printf 'Zombie processes: '
+              ps -eo stat= 2>/dev/null | awk '$1 ~ /^Z/ {n++} END {print n+0}' || true
+              printf '%s\n' '-----------------------------------------------'
+            } | tee -a /tmp/health.log "$file"
+          }
+
+          start_server() {
+            ulimit -n 1048576 2>/dev/null || ulimit -n 65535 2>/dev/null || true
+            ulimit -u 65535 2>/dev/null || true
+            export NODE_OPTIONS="${NODE_OPTIONS:---enable-source-maps --max-old-space-size=4096}"
+            node --enable-source-maps artifacts/api-server/dist/index.mjs \
+              >> /tmp/server.log 2>&1 &
+            SERVER_PID=$!
+            echo "$SERVER_PID" > /tmp/server.pid
+            watchdog "API server started with PID $SERVER_PID"
+          }
+
+          wait_for_server() {
+            local i
+            for i in $(seq 1 30); do
+              if curl -sf http://localhost:8080/api/healthz >/dev/null 2>&1; then
+                API_HEALTH_FAILURES=0
+                success "API server is healthy"
+                return 0
+              fi
+              pid_is_live "$SERVER_PID" || return 1
+              sleep 1
+            done
+            return 1
+          }
+
+          start_ngrok() {
+            ulimit -n 1048576 2>/dev/null || ulimit -n 65535 2>/dev/null || true
+            ngrok config add-authtoken "$NGROK_TOKEN"
+            ngrok http 8080 --pooling-enabled --log=stdout >> /tmp/ngrok.log 2>&1 &
+            NGROK_PID=$!
+            echo "$NGROK_PID" > /tmp/ngrok.pid
+            watchdog "ngrok started with PID $NGROK_PID"
+          }
+
+          refresh_public_url() {
+            local i candidate
+            for i in $(seq 1 30); do
+              candidate="$(curl -sf http://localhost:4040/api/tunnels 2>/dev/null \
+                | grep -oP '"public_url":"https://[^"]+' \
+                | head -1 \
+                | sed 's/"public_url":"//g' || true)"
+              if [[ -n "$candidate" ]]; then
+                PUBLIC_URL="$candidate"
+                echo "PUBLIC_URL=$PUBLIC_URL" >> "$GITHUB_ENV"
+                success "ngrok URL is $PUBLIC_URL"
+                return 0
+              fi
+              sleep 1
+            done
+            return 1
+          }
+
+          restart_server() {
+            warning "Restarting only the failed API server component"
+            diagnostics "API server failure before restart"
+            safe_kill_pid "$SERVER_PID" TERM
+            sleep 2
+            safe_kill_pid "$SERVER_PID" KILL
+            start_server
+            if ! wait_for_server; then
+              error "API server failed to recover"
+              diagnostics "API server recovery failure"
+              return 1
+            fi
+          }
+
+          restart_ngrok() {
+            warning "Restarting only the failed ngrok component"
+            diagnostics "ngrok failure before restart"
+            safe_kill_pid "$NGROK_PID" TERM
+            sleep 2
+            safe_kill_pid "$NGROK_PID" KILL
+            start_ngrok
+            if ! refresh_public_url; then
+              error "ngrok failed to recover"
+              diagnostics "ngrok recovery failure"
+              return 1
+            fi
+          }
+
+          shutdown() {
+            [[ "$SHUTDOWN_DONE" == true ]] && return 0
+            SHUTDOWN_DONE=true
+            info "Graceful shutdown requested; stopping BintuNet components"
+
+            # TERM first gives Node and FFmpeg time to flush pipes and close
+            # files. KILL is only used after the bounded grace period.
+            safe_kill_pid "$NGROK_PID" TERM
+            safe_kill_pid "$SERVER_PID" TERM
+            pkill -TERM -x ffmpeg 2>/dev/null || true
+            pkill -TERM -x streamlink 2>/dev/null || true
+            pkill -TERM -x yt-dlp 2>/dev/null || true
+            sleep 5
+            safe_kill_pid "$NGROK_PID" KILL
+            safe_kill_pid "$SERVER_PID" KILL
+            pkill -KILL -x ffmpeg 2>/dev/null || true
+            pkill -KILL -x streamlink 2>/dev/null || true
+            pkill -KILL -x yt-dlp 2>/dev/null || true
+            rm -f /tmp/server.pid /tmp/ngrok.pid /tmp/bintunet-supervisor.pid
+            success "BintuNet components stopped and PID files removed"
+          }
+          # TERM/INT must exit the supervisor after cleanup. EXIT remains a
+          # final safety net for ordinary workflow completion or failure.
+          trap 'shutdown; exit 143' TERM INT
+          trap shutdown EXIT
+
+          echo "$$" > /tmp/bintunet-supervisor.pid
+          info "Server PID: $SERVER_PID"
+          info "ngrok PID: $NGROK_PID"
+          info "URL: ${PUBLIC_URL:-pending}"
+          info "Running for up to 5 hours 40 minutes; cancel this workflow to shut down."
+
+          if ! pid_is_live "$SERVER_PID"; then
+            error "API server is not running at keep-alive start"
+            diagnostics "API server missing at keep-alive start"
+            exit 1
+          fi
+          if ! pid_is_live "$NGROK_PID"; then
+            error "ngrok is not running at keep-alive start"
+            diagnostics "ngrok missing at keep-alive start"
+            exit 1
+          fi
+
+          health_snapshot
+
+          # Watch frequently for fast recovery, but emit the heavier health
+          # report only every five minutes to keep logs and CPU overhead low.
+          while true; do
+            sleep 30
+            HEALTH_TICKS=$((HEALTH_TICKS + 1))
+            process_counts
+
+            if ! pid_is_live "$SERVER_PID"; then
+              restart_server || exit 1
+            elif ! curl -sf http://localhost:8080/api/healthz >/dev/null 2>&1; then
+              API_HEALTH_FAILURES=$((API_HEALTH_FAILURES + 1))
+              warning "API health check failed ($API_HEALTH_FAILURES/3)"
+              if (( API_HEALTH_FAILURES >= 3 )); then
+                restart_server || exit 1
+              fi
+            else
+              API_HEALTH_FAILURES=0
+            fi
+
+            if ! pid_is_live "$NGROK_PID"; then
+              restart_ngrok || exit 1
+            elif ! curl -sf http://localhost:4040/api/tunnels >/dev/null 2>&1; then
+              NGROK_HEALTH_FAILURES=$((NGROK_HEALTH_FAILURES + 1))
+              warning "ngrok control API check failed ($NGROK_HEALTH_FAILURES/3)"
+              if (( NGROK_HEALTH_FAILURES >= 3 )); then
+                restart_ngrok || exit 1
+              fi
+            else
+              NGROK_HEALTH_FAILURES=0
+            fi
+
+            # A previously observed media process disappearing is reported as
+            # a component failure. The application remains responsible for
+            # restarting it because only it knows the original pipe arguments.
+            if (( FFMPEG_COUNT > 0 )); then FFMPEG_WAS_SEEN=true; fi
+            if (( STREAMLINK_COUNT > 0 )); then STREAMLINK_WAS_SEEN=true; fi
+            if [[ "$FFMPEG_WAS_SEEN" == true && "$PREV_FFMPEG_COUNT" -gt 0 && "$FFMPEG_COUNT" -eq 0 ]]; then
+              watchdog "FFmpeg process disappeared; app-level encoder recovery remains in control"
+              diagnostics "FFmpeg process death"
+            fi
+            if [[ "$STREAMLINK_WAS_SEEN" == true && "$PREV_STREAMLINK_COUNT" -gt 0 && "$STREAMLINK_COUNT" -eq 0 ]]; then
+              watchdog "Streamlink process disappeared; app-level source recovery remains in control"
+              diagnostics "Streamlink process death"
+            fi
+            PREV_FFMPEG_COUNT="$FFMPEG_COUNT"
+            PREV_STREAMLINK_COUNT="$STREAMLINK_COUNT"
+
+            cleanup_leaks
+            resource_trend_check
+
+            if (( HEALTH_TICKS % 10 == 0 )); then
+              local_minutes=$((HEALTH_TICKS * 30 / 60))
+              info "Alive for ${local_minutes}m — $PUBLIC_URL"
+            fi
+            if (( HEALTH_TICKS % 10 == 0 )); then
+              health_snapshot
+            fi
+          done
