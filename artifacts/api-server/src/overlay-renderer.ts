@@ -110,11 +110,46 @@ let sansFontRegistered = false;
       );
     }
 
+    // ── Fallback: any common sans-serif available on this host ───────────────
+    // @napi-rs/canvas has NO bundled fonts at all. If Noto Sans is not
+    // installed (common on plain GitHub Actions runners without the
+    // fonts-noto-core apt package), fall back to whichever broad Latin
+    // sans-serif is present. DejaVu Sans ships with the default Ubuntu
+    // image (fonts-dejavu-core, always pre-installed on GitHub Actions).
+    // Liberation Sans and Ubuntu are also tried so the order of preference is:
+    //   Noto Sans → DejaVu Sans → Liberation Sans → Ubuntu → FreeSans
+    // Any of these fonts renders Latin text, digits, and basic punctuation
+    // correctly, which is sufficient for news tickers, disclaimers, and
+    // chat burn overlays. Without at least one font registered, fillText()
+    // produces empty pixels — not even numbers appear.
+    if (!fontPath) {
+      // Try well-known absolute paths first (fast, no subprocess).
+      const knownPaths = [
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+        "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf",
+        "/usr/share/fonts/truetype/ubuntu/Ubuntu-R.ttf",
+        "/usr/share/fonts/truetype/freefont/FreeSans.ttf",
+        "/usr/share/fonts/truetype/liberation2/LiberationSans-Regular.ttf",
+      ];
+      fontPath = knownPaths.find((p) => existsSync(p)) || null;
+    }
+    if (!fontPath) {
+      // Last resort: scan font dirs for any regular sans-serif TTF.
+      fontPath = findFontFile(
+        COMMON_FONT_DIRS,
+        (name) =>
+          /^(dejavusans|liberationsans-regular|ubuntu-r|freesans|ariall?|helvetical?)[.-]/i.test(name)
+      );
+    }
+
     if (fontPath) {
+      // Register under both "Noto Sans" (used by ef() for explicit injection)
+      // and "sans-serif" (used directly by every stats widget). Both must
+      // point to a real file or fillText() draws nothing.
       const key = GlobalFonts.registerFromPath(fontPath, "Noto Sans");
       sansFontRegistered = !!key;
       if (sansFontRegistered) {
-        logger.info({ fontPath }, "[overlay] Noto Sans font registered — Unicode characters will render correctly");
+        logger.info({ fontPath }, "[overlay] Sans-serif font registered — text and numbers will render correctly");
         // Also register under the generic CSS name "sans-serif".
         // @napi-rs/canvas has no bundled fonts and does NOT auto-map "sans-serif"
         // to any registered font.  Every stats widget (drawStatsTV/Neon/Glass/
@@ -122,13 +157,14 @@ let sansFontRegistered = false;
         // going through ef().  Without this second registration those calls find
         // no matching font and ctx.fillText() draws nothing — text is invisible
         // on the overlay.  Registering under "sans-serif" makes all of those
-        // existing font strings resolve to the real Noto Sans typeface.
+        // existing font strings resolve to the real typeface.
         GlobalFonts.registerFromPath(fontPath, "sans-serif");
       }
     }
     if (!sansFontRegistered) {
       logger.warn(
-        "[overlay] Noto Sans not found (checked Nix store and common Linux font dirs) — non-Latin characters may render as '?'. Install the 'fonts-noto-core' package (apt) or 'noto-fonts' (Nix)."
+        "[overlay] No usable sans-serif font found — ALL overlay text (including plain numbers and Latin letters) will be invisible. " +
+        "Install fonts-noto-core, fonts-dejavu-core, or fonts-liberation (apt) on this host."
       );
     }
   } catch (e) {

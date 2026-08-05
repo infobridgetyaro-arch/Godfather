@@ -289,18 +289,28 @@ export function buildPipeNormalizerArgs(
     // offset by (T_audio_start − T_video_start) seconds.  Result: viewers
     // see video running ahead of audio, or silence for the first N seconds.
     //
-    // Fix: for Facebook we decode audio and apply `aresample=async=1` which
-    // stretches/inserts silence to keep audio aligned with the video clock.
-    // `first_pts=0` forces the first audio output sample to PTS=0 regardless
-    // of the raw input offset, immediately closing the initial gap.  Video is
-    // still copied (no quality loss, no extra CPU for the encoder).  Re-encode
-    // to AAC 128 k / 48 kHz so the main encoder can copy without resampling.
+    // Fix: decode audio and apply `aresample=first_pts=0` which renumbers
+    // the very first output audio sample to PTS=0, immediately closing the
+    // initial A/V gap regardless of how large it is.  Subsequent samples
+    // are numbered sequentially from there — no stretching, no repeating.
     //
+    // WHY NOT async=N:
+    //   The previous filter was `aresample=async=1:first_pts=0`.  async=N
+    //   tells FFmpeg to compensate for timeline gaps by REPEATING the last
+    //   decoded audio sample N samples/second.  With async=1 (minimum), a
+    //   5-second offset requires 5 seconds of repeated audio before real
+    //   content begins — producing the audible "audio looping" symptom.
+    //   Even async=44100 would add a brief stutter.  first_pts=0 alone
+    //   achieves a clean zero-cost timestamp shift with no sample
+    //   repetition, which is the correct tool for a fixed PTS origin gap.
+    //
+    // Video is still copied (no quality loss).  Re-encode audio to AAC
+    // 128 k / 48 kHz so the main encoder can copy without resampling.
     // For all other sources the original `-c copy` path is used — no change.
     ...(isFacebook
       ? [
           "-c:v", "copy",
-          "-af", "aresample=async=1:first_pts=0",
+          "-af", "aresample=first_pts=0",
           "-c:a", "aac", "-b:a", "128k", "-ar", "48000",
         ]
       : ["-c", "copy"]),
